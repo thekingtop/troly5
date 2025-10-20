@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trợ lý của LS Hồng Vân</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Libraries for Exporting & File Processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.7.0/mammoth.browser.min.js"></script>
+    <!-- Add Dexie for IndexedDB management -->
+    <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
+
+    <style>
+      :root {
+        --color-background: #f8fafc; /* slate-50 */
+        --color-surface: #ffffff;
+        --color-border: #e2e8f0;    /* slate-200 */
+        --color-primary: #2563eb;   /* blue-600 */
+        --color-primary-hover: #1d4ed8; /* blue-700 */
+        --color-primary-light: #eff6ff; /* blue-50 */
+        --color-text-primary: #0f172a; /* slate-900 */
+        --color-text-secondary: #475569; /* slate-600 */
+        --color-text-tertiary: #94a3b8; /* slate-400 */
+        --sidebar-bg: #111827; /* gray-900 */
+        --sidebar-text: #9ca3af; /* gray-400 */
+        --sidebar-text-hover: #ffffff;
+        --sidebar-active-bg: #1f2937; /* gray-800 */
+        --sidebar-active-text: #ffffff;
+      }
+
+      body {
+        font-family: 'Poppins', sans-serif;
+        background-color: var(--color-background);
+        color: var(--color-text-primary);
+      }
+      
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1; /* slate-300 */
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; /* slate-400 */
+      }
+      
+      /* Animations */
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
+      
+      /* New loading animation for results panel */
+      @keyframes bar-wave {
+        0%, 40%, 100% { transform: scaleY(0.4); }
+        20% { transform: scaleY(1.0); }
+      }
+      .loading-bar-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        flex-direction: column;
+      }
+      .loading-bars {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .loading-bar {
+        background-color: var(--color-primary);
+        height: 40px;
+        width: 6px;
+        margin: 0 4px;
+        border-radius: 2px;
+        animation: bar-wave 1.2s infinite ease-in-out;
+      }
+      .loading-bar:nth-child(2) { animation-delay: 0.1s; }
+      .loading-bar:nth-child(3) { animation-delay: 0.2s; }
+      
+      .soft-shadow {
+         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
