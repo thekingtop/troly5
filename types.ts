@@ -10,7 +10,7 @@ export interface UploadedFile {
     error?: string;
 }
 
-export type DocType = '' | 'legalServiceContract' | 'demandLetter' | 'powerOfAttorney' | 'meetingMinutes' | 'lawsuit' | 'evidenceList' | 'civilMatterPetition' | 'statement' | 'appeal' | 'civilContract' | 'businessRegistration' | 'divorcePetition' | 'will' | 'enforcementPetition' | 'complaint' | 'reviewPetition' | 'inheritanceWaiver' | 'statementOfOpinion' | 'defenseStatement' | 'enterpriseRegistration' | 'householdRegistration';
+export type DocType = '' | 'legalServiceContract' | 'demandLetter' | 'powerOfAttorney' | 'meetingMinutes' | 'lawsuit' | 'evidenceList' | 'civilMatterPetition' | 'statement' | 'appeal' | 'civilContract' | 'businessRegistration' | 'divorcePetition' | 'will' | 'enforcementPetition' | 'complaint' | 'reviewPetition' | 'inheritanceWaiver' | 'statementOfOpinion' | 'defenseStatement' | 'enterpriseRegistration' | 'householdRegistration' | 'landRegistrationApplication' | 'divorceAgreement';
 
 // A single, flexible interface for all form data
 export interface FormData {
@@ -210,6 +210,40 @@ export interface BusinessFormationReport {
     globalChatHistory?: ChatMessage[];
 }
 
+// --- NEW: Land Procedure Report Structure ---
+export interface LandProcedureReport {
+    procedureType: string; // e.g., "Transfer", "Inheritance"
+    localRegulations: string; // Citation of specific provincial decisions
+    stepByStepGuide: { step: string; description: string; location: string; estimatedTime: string }[];
+    documentChecklist: { name: string; required: boolean; notes: string; status: 'missing' | 'available' }[];
+    financialEstimation: {
+        item: string;
+        amount: string; // Estimate or formula
+        basis: string; // Legal basis for calculation (e.g., 2% TNCN)
+    }[];
+    legalRisksAndTips: string[]; // Cunning lawyer tips for land
+    globalChatHistory?: ChatMessage[];
+}
+
+// --- NEW: Divorce Report Structure ---
+export interface DivorceReport {
+    divorceType: 'ThuanTinh' | 'DonPhuong'; // Amicable or Unilateral
+    custodyAnalysis: {
+        strategy: string;
+        evidenceNeeded: string[];
+        cunningTips: string; // How to win custody
+    };
+    assetDivision: {
+        commonAssets: string[];
+        privateAssets: string[];
+        divisionStrategy: string; // How to maximize asset retention
+        cunningTips: string;
+    };
+    procedureRoadmap: { step: string; description: string }[];
+    emotionalAndLegalAdvice: string;
+    globalChatHistory?: ChatMessage[];
+}
+
 
 // --- Types for Case Management ---
 
@@ -225,19 +259,19 @@ export interface SerializableFile {
 export interface SavedCase {
     id: string;
     name: string;
-    workflowType: 'consulting' | 'litigation' | 'businessFormation';
+    workflowType: 'consulting' | 'litigation' | 'businessFormation' | 'landProcedure' | 'divorceConsultation';
     caseContent: string;
     clientRequest: string;
     query: string;
     files: SerializableFile[];
     createdAt: string;
-    // --- New contextual fields ---
     updatedAt: string;
-    litigationType: LitigationType | null; // Can be null for consulting cases
+    litigationType: LitigationType | null;
     litigationStage: LitigationStage;
     analysisReport: AnalysisReport | null;
-    // --- New fields for consulting workflow ---
     consultingReport?: ConsultingReport | null;
     businessFormationReport?: BusinessFormationReport | null;
+    landProcedureReport?: LandProcedureReport | null; // NEW
+    divorceReport?: DivorceReport | null; // NEW
     jurisdiction?: string;
 }

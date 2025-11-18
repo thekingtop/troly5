@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FileUpload } from './components/FileUpload.tsx';
 import { ReportDisplay } from './components/ReportDisplay.tsx';
@@ -9,6 +7,7 @@ import { analyzeCaseFiles, generateContextualDocument, categorizeMultipleFiles, 
 import { db, getAllCasesSorted, saveCase, deleteCaseById, clearAndBulkAddCases } from './services/db.ts';
 import type { AnalysisReport, UploadedFile, SavedCase, SerializableFile, LitigationStage, LitigationType, FileCategory, ApplicableLaw, LegalLoophole, ParagraphGenerationOptions, ChatMessage, DraftingMode } from './types.ts';
 import { ConsultingWorkflow, BusinessFormationWorkflow } from './components/ConsultingWorkflow.tsx';
+import { LandProcedureWorkflow, DivorceWorkflow } from './components/SpecializedWorkflows.tsx';
 import { PreviewModal } from './components/PreviewModal.tsx';
 import { ExportIcon } from './components/icons/ExportIcon.tsx';
 import { TrashIcon } from './components/icons/TrashIcon.tsx';
@@ -42,6 +41,7 @@ declare var html2canvas: any;
 type MainActionType = 'analyze' | 'update' | 'none';
 type View = 'caseAnalysis' | 'intelligentSearch' | 'argumentMap' | 'documentGenerator' | 'quickDraft' | 'dashboard' | 'fileManagement' | 'calendar' | 'client';
 type ClientPosition = 'left' | 'right' | 'not_applicable';
+type AppWorkflowType = 'litigation' | 'consulting' | 'businessFormation' | 'landProcedure' | 'divorceConsultation';
 
 // --- Local Icons & Components ---
 const PanelCollapseIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -104,6 +104,18 @@ const StyledMagicIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 const BuildingOfficeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3.75h1.5m-1.5 3.75h1.5m3-7.5h1.5m-1.5 3.75h1.5m-1.5 3.75h1.5M9 21v-2.25a2.25 2.25 0 0 1 2.25-2.25h1.5A2.25 2.25 0 0 1 15 18.75V21" />
+  </svg>
+);
+
+const MapIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z" />
+  </svg>
+);
+
+const HeartIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
   </svg>
 );
 
@@ -253,405 +265,705 @@ export default function App() {
     const [isSaving, setIsSaving] = useState(false);
     const [clientPosition, setClientPosition] = useState<ClientPosition>('not_applicable');
     const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
-    
-    const loadCases = useCallback(async () => {
-        const cases = await getAllCasesSorted();
-        setSavedCases(cases);
+    const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const [libsReady, setLibsReady] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [isPreprocessingFinished, setIsPreprocessingFinished] = useState(false);
+    const [showWorkflowSelection, setShowWorkflowSelection] = useState(true);
+    const [currentWorkflow, setCurrentWorkflow] = useState<AppWorkflowType>('litigation');
+
+    const isMobile = useIsMobile();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const loadCases = async () => {
+            try {
+                const cases = await getAllCasesSorted();
+                setSavedCases(cases);
+            } catch (error) {
+                console.error("Failed to load cases:", error);
+            }
+        };
+        loadCases();
+
+        const checkLibs = () => {
+            if (typeof docx !== 'undefined' && typeof XLSX !== 'undefined' && typeof jspdf !== 'undefined' && typeof html2canvas !== 'undefined') {
+                setLibsReady(true);
+            } else {
+                setTimeout(checkLibs, 500);
+            }
+        };
+        checkLibs();
     }, []);
 
-    useEffect(() => { loadCases(); }, [loadCases]);
-    
-    const handleNewCase = (workflowType: 'consulting' | 'litigation' | 'businessFormation') => {
-      setActiveCase({
-        id: `new_${Date.now()}`,
-        name: '',
-        workflowType,
-        caseContent: '',
-        clientRequest: '',
-        query: '',
-        files: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        litigationType: null,
-        litigationStage: 'consulting',
-        analysisReport: null,
-        consultingReport: null,
-        businessFormationReport: null,
-        jurisdiction: '',
-      });
-    };
-    
-    const handleSelectCase = (caseData: SavedCase) => {
-      // Logic for loading litigation case data into the main App state.
-      // Other workflows handle their state internally from the `activeCase` prop.
-      if (caseData.workflowType === 'litigation') {
-        const loadedFiles = caseData.files.map(sf => ({
-            id: `${sf.name}-${Math.random()}`,
-            file: base64ToFile(sf.content, sf.name, sf.type),
-            preview: null,
-            category: 'Uncategorized' as FileCategory,
-            status: 'completed' as const,
-        }));
-        setFiles(loadedFiles);
-        setQuery(caseData.query);
-        setReport(caseData.analysisReport);
-        setLitigationType(caseData.litigationType || 'civil');
-        setJurisdiction(caseData.jurisdiction || '');
+    // Auto-collapse left panel on mobile when report is present
+    useEffect(() => {
+      if (isMobile && report) {
+        setIsLeftPanelCollapsed(true);
       }
-      setActiveCase(caseData);
-    };
+    }, [isMobile, report]);
 
-    const handleSaveCase = async () => {
-      if (!activeCase) return;
-      const defaultName = report?.editableCaseSummary?.substring(0, 50) || query || `Vụ việc ngày ${new Date().toLocaleDateString('vi-VN')}`;
-      const newCaseName = window.prompt("Nhập tên để lưu vụ việc:", activeCase.name || defaultName);
-      if (!newCaseName) return;
-  
-      setIsSaving(true);
-      try {
-        const serializableFiles = await Promise.all(
-          files.map(async f => ({ name: f.file.name, type: f.file.type, content: await fileToBase64(f.file) }))
-        );
-        const now = new Date().toISOString();
-        const isNewCase = activeCase.id.startsWith('new_');
-        const caseToSave: SavedCase = {
-            ...activeCase,
-            id: isNewCase ? now : activeCase.id,
-            createdAt: isNewCase ? now : activeCase.createdAt,
-            updatedAt: now, name: newCaseName, workflowType: 'litigation', files: serializableFiles,
-            query: query, analysisReport: report, litigationType: litigationType,
-            litigationStage: report?.litigationStage || 'consulting',
-            caseContent: caseSummary,
-            clientRequest: clientRequestSummary,
-            jurisdiction: jurisdiction
+
+    const handleNewCase = (type: AppWorkflowType) => {
+        const newCase: SavedCase = {
+            id: `new_${Date.now()}`,
+            name: `Vụ việc mới ${new Date().toLocaleString('vi-VN')}`,
+            workflowType: type,
+            caseContent: '', clientRequest: '', query: '', files: [],
+            createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+            litigationType: type === 'litigation' ? 'civil' : null,
+            litigationStage: type === 'litigation' ? 'first_instance' : 'consulting',
+            analysisReport: null,
         };
-        await saveCase(caseToSave);
-        setActiveCase(caseToSave);
-        await loadCases();
-        alert(`Vụ việc "${newCaseName}" đã được lưu thành công!`);
-      } catch (err) { alert("Đã xảy ra lỗi khi lưu.");
-      } finally { setIsSaving(false); }
-    };
-  
-    const handleDeleteCase = async (caseId: string, caseName: string) => {
-      if (window.confirm(`Bạn có chắc muốn xóa vĩnh viễn vụ việc "${caseName}"?`)) {
-        await deleteCaseById(caseId);
-        await loadCases();
-        if (activeCase?.id === caseId) {
-            handleGoBackToSelection();
-        }
-      }
-    };
-
-    const handleGoBackToSelection = () => {
+        setActiveCase(newCase);
+        setCurrentWorkflow(type);
+        setShowWorkflowSelection(false);
         setFiles([]);
         setReport(null);
-        setQuery('');
         setCaseSummary('');
         setClientRequestSummary('');
+        setQuery('');
         setError(null);
-        setActiveCase(null);
-        setJurisdiction('');
+        setMainActionType('analyze');
+        setIsLeftPanelCollapsed(false); // Ensure panel is open for new case
     };
 
-    const handleAnalyzeClick = async () => {
-        if (files.length === 0 && !caseSummary && !clientRequestSummary) {
-          setError("Vui lòng tải tệp hoặc nhập nội dung để phân tích.");
-          return;
+    const handleSelectCase = (savedCase: SavedCase) => {
+        setActiveCase(savedCase);
+        setCurrentWorkflow(savedCase.workflowType || 'litigation');
+        setShowWorkflowSelection(false);
+        const loadedFiles: UploadedFile[] = (savedCase.files || []).map(sf => ({
+            id: `${sf.name}-${Math.random()}`,
+            file: base64ToFile(sf.content, sf.name, sf.type),
+            preview: null, category: 'Uncategorized', status: 'completed' // Assume loaded files are processed
+        }));
+        setFiles(loadedFiles);
+        setReport(savedCase.analysisReport);
+        setQuery(savedCase.query);
+        setJurisdiction(savedCase.jurisdiction || '');
+        if (savedCase.litigationType) setLitigationType(savedCase.litigationType);
+        setError(null);
+        setMainActionType(savedCase.analysisReport ? 'update' : 'analyze');
+        if (savedCase.analysisReport) {
+             setIsLeftPanelCollapsed(true); // Auto collapse if report exists
+        } else {
+             setIsLeftPanelCollapsed(false);
         }
-        setIsLoading(true); setError(null);
-        try {
-            const effectiveQuery = query.trim() || "Phân tích toàn diện hồ sơ.";
-            if (!caseSummary && !clientRequestSummary && files.length > 0) {
-              const summaries = await extractSummariesFromFiles(files, clientPosition !== 'not_applicable' ? clientPosition : undefined);
-              setCaseSummary(summaries.caseSummary);
-              setClientRequestSummary(summaries.clientRequestSummary);
+    };
+
+    const handleDeleteCase = async (e: React.MouseEvent, caseId: string) => {
+        e.stopPropagation();
+        if (window.confirm("Bạn có chắc chắn muốn xóa vụ việc này?")) {
+            await deleteCaseById(caseId);
+            const updatedCases = await getAllCasesSorted();
+            setSavedCases(updatedCases);
+            if (activeCase?.id === caseId) {
+                setActiveCase(null);
+                setShowWorkflowSelection(true);
             }
-            const analysisResult = await analyzeCaseFiles(
-                files, 
-                effectiveQuery, 
-                undefined, 
-                clientPosition !== 'not_applicable' ? clientPosition : undefined,
-                jurisdiction
-            );
-            setReport(analysisResult);
-            setMainActionType('update');
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.");
-        } finally { setIsLoading(false); }
+        }
     };
 
-    const handleReanalyzeClick = async (reportToReanalyze: AnalysisReport) => {
-        setIsReanalyzing(true); setError(null);
-        try {
-            const newReport = await reanalyzeCaseWithCorrections(reportToReanalyze, files, clientPosition !== 'not_applicable' ? clientPosition : undefined);
-            setReport(newReport);
-        } catch (err) { setError(err instanceof Error ? err.message : "Lỗi khi phân tích lại.");
-        } finally { setIsReanalyzing(false); }
-    };
-
-    const handleSearch = async (newQuery: string) => {
-        if (!report) return;
-        const currentHistory = report.intelligentSearchChat || [];
-        const newUserMessage: ChatMessage = { role: 'user', content: newQuery };
-        const updatedHistory = [...currentHistory, newUserMessage];
-        setReport({ ...report, intelligentSearchChat: updatedHistory });
-        setIsLoading(true); setError(null);
-        try {
-            const aiResponse = await intelligentSearchQuery(report, files, currentHistory, newQuery);
-            const aiMessage: ChatMessage = { role: 'model', content: aiResponse };
-            const finalHistory = [...updatedHistory, aiMessage];
-            setReport(prev => prev ? { ...prev, intelligentSearchChat: finalHistory } : null);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Lỗi khi tìm kiếm.");
-        } finally { setIsLoading(false); }
-    };
-
-    const handleUpdateReport = (updatedReport: AnalysisReport) => {
-        setReport(updatedReport);
-    };
-    
-    const handleBackup = async () => {
+    const handleBackupData = async () => {
         try {
             const allCases = await getAllCasesSorted();
-            if (allCases.length === 0) {
-                alert("Không có dữ liệu để sao lưu.");
-                return;
-            }
-            const jsonData = JSON.stringify(allCases, null, 2);
-            const blob = new Blob([jsonData], { type: "application/json" });
+            const blob = new Blob([JSON.stringify(allCases, null, 2)], { type: "application/json" });
             const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
+            const link = document.createElement('a');
             link.href = url;
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-            link.download = `legal-assistant-backup-${timestamp}.json`;
+            link.download = `backup_tro_ly_luat_su_${new Date().toISOString().split('T')[0]}.json`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            URL.revokeObjectURL(url);
         } catch (error) {
-            console.error("Lỗi khi sao lưu:", error);
-            alert(`Đã xảy ra lỗi khi sao lưu dữ liệu: ${error instanceof Error ? error.message : "Unknown error"}`);
+            console.error("Backup failed:", error);
+            alert("Sao lưu thất bại.");
+        }
+    };
+
+    const handleRestoreData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!window.confirm("CẢNH BÁO: Hành động này sẽ GHI ĐÈ toàn bộ dữ liệu hiện tại bằng dữ liệu từ file sao lưu. Bạn có chắc chắn muốn tiếp tục?")) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = JSON.parse(event.target?.result as string);
+                await clearAndBulkAddCases(data);
+                const updatedCases = await getAllCasesSorted();
+                setSavedCases(updatedCases);
+                alert("Phục hồi dữ liệu thành công!");
+                window.location.reload(); 
+            } catch (error) {
+                console.error("Restore failed:", error);
+                alert("Phục hồi thất bại. File không hợp lệ.");
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    // ... (Keep processFiles, performAnalysis, handleAnalyzeClick, handleUpdateClick as is)
+    const processFiles = useCallback(async (filesToProcess: UploadedFile[]) => {
+        const filesOnly = filesToProcess.map(f => f.file);
+        
+        // Run categorization and summarization in parallel
+        const [categories, summaries] = await Promise.all([
+            categorizeMultipleFiles(filesOnly),
+            extractSummariesFromFiles(filesToProcess, clientPosition)
+        ]);
+
+        // Update categories
+        setFiles(prevFiles => prevFiles.map(f => ({
+            ...f,
+            status: 'completed',
+            category: categories[f.file.name] || 'Uncategorized'
+        })));
+        
+        // Update summaries only if not already set manually
+        if (!caseSummary) setCaseSummary(summaries.caseSummary);
+        if (!clientRequestSummary) setClientRequestSummary(summaries.clientRequestSummary);
+
+    }, [caseSummary, clientRequestSummary, clientPosition]);
+
+    const performAnalysis = useCallback(async (filesToAnalyze: UploadedFile[]) => {
+        setIsLoading(true);
+        try {
+            const result = await analyzeCaseFiles(filesToAnalyze, query, undefined, clientPosition, jurisdiction);
+            setReport(result);
+            setIsLeftPanelCollapsed(true); // Auto-collapse on successful analysis
+            setMainActionType('update');
+            if (result.litigationStage) {
+                 // Check if the stage exists for the current type, if not default to first
+                 const stageExists = litigationStagesByType[litigationType].some(s => s.id === result.litigationStage);
+                 if (!stageExists) {
+                     // Keep current manual selection or default? AI's output might be raw string.
+                     // For now, we trust the AI but if it's not in the list, UI might show raw ID.
+                 }
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "An unknown error occurred");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [query, clientPosition, jurisdiction, litigationType]);
+
+    const handleAnalyzeClick = useCallback(async () => {
+        if (files.length === 0 && !query.trim()) {
+            setError("Vui lòng tải lên hồ sơ hoặc nhập yêu cầu.");
+            return;
+        }
+        setError(null);
+        setReport(null); // Clear previous report
+
+        setIsProcessing(true);
+        setIsPreprocessingFinished(false);
+        const filesToProcess = files.map(f => ({ ...f, status: 'processing' as const }));
+        setFiles(filesToProcess);
+
+        try {
+             await processFiles(filesToProcess);
+        } catch (e) {
+             const failedFiles = files.map(f => ({ ...f, status: 'failed' as const, error: e instanceof Error ? e.message : 'Processing failed' }));
+             setFiles(failedFiles);
+        } finally {
+            setIsPreprocessingFinished(true);
+        }
+
+    }, [files, query, processFiles]);
+
+    const handleUpdateClick = async () => {
+        if (!report) return;
+        setIsLoading(true);
+        setError(null);
+        try {
+            // Pass the current report AND the current selected stage (which might have been manually changed)
+            const result = await analyzeCaseFiles(files, query, { report, stage: report.litigationStage }, clientPosition, jurisdiction);
+            setReport(result);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "An unknown error occurred during update");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleReanalyze = async (reportToReanalyze: AnalysisReport) => {
+        setIsReanalyzing(true);
+        try {
+             const result = await reanalyzeCaseWithCorrections(reportToReanalyze, files, clientPosition);
+             setReport(result);
+        } catch (err) {
+             alert("Phân tích lại thất bại: " + (err instanceof Error ? err.message : "Lỗi không xác định"));
+        } finally {
+            setIsReanalyzing(false);
+        }
+    };
+
+    const handleSaveCase = async () => {
+        if (!activeCase) return;
+        setIsSaving(true);
+        try {
+            const serializableFiles: SerializableFile[] = await Promise.all(
+                files.map(async f => ({
+                    name: f.file.name,
+                    type: f.file.type,
+                    content: await fileToBase64(f.file)
+                }))
+            );
+
+            const now = new Date().toISOString();
+            const isNewCase = activeCase.id.startsWith('new_');
+            
+            const caseToSave: SavedCase = {
+                ...activeCase,
+                id: isNewCase ? now : activeCase.id, // Use timestamp as ID for new cases
+                createdAt: isNewCase ? now : activeCase.createdAt,
+                updatedAt: now,
+                caseContent: caseSummary, // Using summary as content for preview
+                clientRequest: clientRequestSummary, // Using summary
+                query,
+                files: serializableFiles,
+                litigationType,
+                litigationStage: report?.litigationStage || 'first_instance',
+                analysisReport: report,
+                jurisdiction
+            };
+
+            await saveCase(caseToSave);
+            const updatedCases = await getAllCasesSorted();
+            setSavedCases(updatedCases);
+            setActiveCase(caseToSave); // Update active case with new ID/Data
+            alert("Đã lưu vụ việc thành công!");
+        } catch (err) {
+            console.error("Error saving case:", err);
+            alert("Lỗi khi lưu vụ việc.");
+        } finally {
+            setIsSaving(false);
         }
     };
     
-    const handleRestore = () => {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.json';
-        fileInput.onchange = async (event) => {
-            const file = (event.target as HTMLInputElement).files?.[0];
-            if (!file) return;
-    
-            if (!window.confirm("Khôi phục dữ liệu sẽ XÓA TẤT CẢ dữ liệu hiện tại và thay thế bằng dữ liệu từ tệp sao lưu. Bạn có chắc chắn muốn tiếp tục?")) {
-                return;
-            }
-    
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const content = e.target?.result;
-                    if (typeof content !== 'string') throw new Error("Không thể đọc tệp.");
-                    
-                    const restoredCases = JSON.parse(content);
-                    
-                    if (!Array.isArray(restoredCases) || (restoredCases.length > 0 && typeof restoredCases[0].id === 'undefined')) {
-                         throw new Error("Tệp sao lưu không hợp lệ hoặc bị hỏng.");
-                    }
-                    
-                    await clearAndBulkAddCases(restoredCases);
-                    await loadCases(); // Reload cases into state
-                    alert("Dữ liệu đã được khôi phục thành công!");
-                } catch (error) {
-                    console.error("Lỗi khi khôi phục:", error);
-                    alert(`Đã xảy ra lỗi khi khôi phục dữ liệu: ${error instanceof Error ? error.message : "Tệp không hợp lệ."}`);
+    const handleExportReport = async (format: 'docx' | 'xlsx' | 'pdf', customizedReport: AnalysisReport, orderedSections: ReportSection[]) => {
+        if (!libsReady) {
+            alert("Thư viện xuất file chưa sẵn sàng. Vui lòng thử lại sau vài giây.");
+            return;
+        }
+        setIsExporting(true);
+        
+        try {
+            const fileName = `Bao_cao_Phan_tich_${new Date().toISOString().split('T')[0]}`;
+            
+            if (format === 'pdf') {
+                const { jsPDF } = (window as any).jspdf;
+                const doc = new jsPDF();
+                // Basic PDF generation (placeholder)
+                doc.setFontSize(18);
+                doc.text("BÁO CÁO PHÂN TÍCH VỤ VIỆC", 105, 20, { align: 'center' });
+                doc.setFontSize(12);
+                let y = 40;
+                
+                if (customizedReport.customNotes) {
+                     doc.text("GHI CHÚ:", 20, y); y+=10;
+                     const splitNotes = doc.splitTextToSize(customizedReport.customNotes, 170);
+                     doc.text(splitNotes, 20, y);
+                     y += splitNotes.length * 7 + 10;
                 }
-            };
-            reader.readAsText(file);
-        };
-        fileInput.click();
+
+                orderedSections.forEach(section => {
+                    if (section.id !== 'customNotesSection' && customizedReport[section.id as keyof AnalysisReport]) {
+                        doc.setFont("helvetica", "bold");
+                        doc.text(section.title.toUpperCase(), 20, y);
+                        y += 10;
+                        doc.setFont("helvetica", "normal");
+                        const content = JSON.stringify(customizedReport[section.id as keyof AnalysisReport]); // Simplification
+                        const splitContent = doc.splitTextToSize(content.substring(0, 500) + "...", 170);
+                        doc.text(splitContent, 20, y);
+                        y += splitContent.length * 7 + 10;
+                        if (y > 280) { doc.addPage(); y = 20; }
+                    }
+                });
+                
+                doc.save(`${fileName}.pdf`);
+            } else {
+                alert("Tính năng xuất file này đang được hoàn thiện.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Lỗi khi xuất báo cáo.");
+        } finally {
+            setIsExporting(false);
+            setIsCustomizeModalOpen(false);
+        }
+    };
+    
+    const handleIntelligentSearch = async (searchQuery: string) => {
+        if (!report) return;
+        
+        const currentHistory = report.intelligentSearchChat || [];
+        const newUserMessage: ChatMessage = { role: 'user', content: searchQuery };
+        const updatedHistory = [...currentHistory, newUserMessage];
+        
+        const updatedReport = { ...report, intelligentSearchChat: updatedHistory };
+        setReport(updatedReport);
+        
+        try {
+            const answer = await intelligentSearchQuery(report, files, updatedHistory, searchQuery);
+             const aiMessage: ChatMessage = { role: 'model', content: answer };
+             const finalReport = { ...updatedReport, intelligentSearchChat: [...updatedHistory, aiMessage] };
+             setReport(finalReport);
+        } catch (err) {
+            const errorMessage: ChatMessage = { role: 'model', content: "Lỗi: Không thể trả lời câu hỏi lúc này." };
+             const finalReport = { ...updatedReport, intelligentSearchChat: [...updatedHistory, errorMessage] };
+             setReport(finalReport);
+        }
     };
 
+    if (showWorkflowSelection) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+                <header className="bg-white shadow-sm border-b border-slate-200 p-4 flex justify-between items-center sticky top-0 z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-blue-600 p-2 rounded-lg shadow-md"><AppLogo className="w-8 h-8 text-white" /></div>
+                        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Trợ lý Luật sư AI</h1>
+                    </div>
+                    <div className="flex gap-3">
+                        <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 shadow-sm transition-all">
+                            <UploadIcon className="w-5 h-5 text-slate-500" /> Phục hồi Dữ liệu
+                        </button>
+                        <input type="file" ref={fileInputRef} onChange={handleRestoreData} className="hidden" accept=".json" />
+                        <button onClick={handleBackupData} className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white font-semibold rounded-lg hover:bg-slate-900 shadow-md transition-all">
+                            <DownloadIcon className="w-5 h-5" /> Sao lưu Dữ liệu
+                        </button>
+                    </div>
+                </header>
+                <main className="flex-grow p-8 max-w-7xl mx-auto w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-12">
+                        {/* Litigation Card */}
+                        <button onClick={() => handleNewCase('litigation')} className="group relative flex flex-col items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-blue-400 transition-all duration-300 text-center">
+                             <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                                <StyledAnalysisIcon className="w-8 h-8 text-blue-600" />
+                            </div>
+                            <h2 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">Tranh tụng</h2>
+                            <p className="text-sm text-slate-500 line-clamp-3">Phân tích hồ sơ, xây dựng chiến lược, tìm kiếm chứng cứ cho các vụ án.</p>
+                        </button>
+                        {/* Consulting Card */}
+                        <button onClick={() => handleNewCase('consulting')} className="group relative flex flex-col items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-green-400 transition-all duration-300 text-center">
+                             <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                                <ChatBubbleLeftIcon className="w-8 h-8 text-green-600" />
+                            </div>
+                            <h2 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-green-600 transition-colors">Tư vấn Nhanh</h2>
+                            <p className="text-sm text-slate-500 line-clamp-3">Tư vấn pháp lý, rà soát hợp đồng, giải đáp thắc mắc thường xuyên.</p>
+                        </button>
+                        {/* Business Formation Card */}
+                         <button onClick={() => handleNewCase('businessFormation')} className="group relative flex flex-col items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-purple-400 transition-all duration-300 text-center">
+                             <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                                <BuildingOfficeIcon className="w-8 h-8 text-purple-600" />
+                            </div>
+                            <h2 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-purple-600 transition-colors">Thành lập DN</h2>
+                            <p className="text-sm text-slate-500 line-clamp-3">Tư vấn mô hình, thuế, và soạn hồ sơ đăng ký kinh doanh.</p>
+                        </button>
+                        {/* Land Procedure Card */}
+                         <button onClick={() => handleNewCase('landProcedure')} className="group relative flex flex-col items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-teal-400 transition-all duration-300 text-center">
+                             <div className="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                                <MapIcon className="w-8 h-8 text-teal-600" />
+                            </div>
+                            <h2 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-teal-600 transition-colors">Đăng ký Đất đai</h2>
+                            <p className="text-sm text-slate-500 line-clamp-3">Thủ tục sang tên sổ đỏ, biến động đất đai, tính thuế phí.</p>
+                        </button>
+                        {/* Divorce Consultation Card */}
+                         <button onClick={() => handleNewCase('divorceConsultation')} className="group relative flex flex-col items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-rose-400 transition-all duration-300 text-center">
+                             <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                                <HeartIcon className="w-8 h-8 text-rose-600" />
+                            </div>
+                            <h2 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-rose-600 transition-colors">Tư vấn Ly hôn</h2>
+                            <p className="text-sm text-slate-500 line-clamp-3">Chiến lược quyền nuôi con, phân chia tài sản, thủ tục ly hôn.</p>
+                        </button>
+                    </div>
 
-    const CaseSelectionScreen: React.FC = () => (
-      <div className="min-h-screen bg-slate-100 flex flex-col items-center p-4 sm:p-6 md:p-8">
-          <header className="flex items-center gap-4 mb-8">
-              <AppLogo className="w-12 h-12"/>
-              <div>
-                  <h1 className="text-3xl font-bold text-slate-800">Trợ lý Luật sư AI</h1>
-                  <p className="text-slate-500">Phân tích hồ sơ, xây dựng chiến lược, soạn thảo văn bản và quản lý vụ việc.</p>
-              </div>
-          </header>
-          <div className="w-full max-w-5xl bg-white p-6 rounded-xl shadow-lg border border-slate-200/80">
-              <h2 className="text-xl font-bold text-slate-800 mb-4">Bắt đầu một Nghiệp vụ Mới</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <button onClick={() => handleNewCase('litigation')} className="group flex flex-col items-center justify-center p-6 bg-blue-50 hover:bg-blue-100 border-2 border-dashed border-blue-200 hover:border-blue-400 rounded-lg transition-all">
-                      <StyledAnalysisIcon className="w-10 h-10 text-blue-500 mb-3 transition-transform group-hover:scale-110"/>
-                      <span className="font-semibold text-blue-800">Vụ việc Tranh tụng</span>
-                      <span className="text-xs text-blue-600 text-center mt-1">Phân tích hồ sơ, xây dựng chiến lược tố tụng.</span>
-                  </button>
-                  <button onClick={() => handleNewCase('consulting')} className="group flex flex-col items-center justify-center p-6 bg-green-50 hover:bg-green-100 border-2 border-dashed border-green-200 hover:border-green-400 rounded-lg transition-all">
-                      <ChatBubbleLeftIcon className="w-10 h-10 text-green-500 mb-3 transition-transform group-hover:scale-110"/>
-                      <span className="font-semibold text-green-800">Nhiệm vụ Tư vấn</span>
-                      <span className="text-xs text-green-600 text-center mt-1">Tư vấn nhanh, đề xuất lộ trình cho khách hàng.</span>
-                  </button>
-                  <button onClick={() => handleNewCase('businessFormation')} className="group flex flex-col items-center justify-center p-6 bg-purple-50 hover:bg-purple-100 border-2 border-dashed border-purple-200 hover:border-purple-400 rounded-lg transition-all">
-                      <BuildingOfficeIcon className="w-10 h-10 text-purple-500 mb-3 transition-transform group-hover:scale-110"/>
-                      <span className="font-semibold text-purple-800">Thành lập Doanh nghiệp</span>
-                      <span className="text-xs text-purple-600 text-center mt-1">Tư vấn mô hình, thuế và chuẩn bị hồ sơ.</span>
-                  </button>
-              </div>
-              <div className="mt-8">
-                  <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-xl font-bold text-slate-800">Hoặc tiếp tục một Nghiệp vụ đã lưu</h2>
-                  </div>
-                  <div className="max-h-60 overflow-y-auto space-y-2 pr-2 -mr-2">
-                      {savedCases.length > 0 ? (
-                          savedCases.map(c => (
-                              <div key={c.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100/50 hover:shadow-sm transition-all">
-                                  <div onClick={() => handleSelectCase(c)} className="cursor-pointer flex-grow min-w-0">
-                                      <p className="font-semibold text-slate-800 truncate">{c.name}</p>
-                                      <p className="text-xs text-slate-500">
-                                        {c.workflowType === 'litigation' ? 'Vụ việc Tranh tụng' : c.workflowType === 'consulting' ? 'Nhiệm vụ Tư vấn' : 'Thành lập Doanh nghiệp'} - Cập nhật: {new Date(c.updatedAt).toLocaleString('vi-VN')}
-                                      </p>
-                                  </div>
-                                  <button onClick={() => handleDeleteCase(c.id, c.name)} className="p-1.5 rounded-full hover:bg-red-100 ml-4"><TrashIcon className="w-5 h-5 text-slate-500 hover:text-red-500"/></button>
-                              </div>
-                          ))
-                      ) : (
-                          <p className="text-center text-slate-500 py-4">Chưa có nghiệp vụ nào được lưu.</p>
-                      )}
-                  </div>
-              </div>
-          </div>
-      </div>
-    );
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FolderIcon className="w-5 h-5 text-slate-500"/> Vụ việc đã lưu</h3>
+                            <span className="text-sm font-semibold text-slate-500">{savedCases.length} vụ việc</span>
+                        </div>
+                        {savedCases.length === 0 ? (
+                             <div className="p-12 text-center text-slate-400">Chưa có vụ việc nào được lưu.</div>
+                        ) : (
+                            <div className="divide-y divide-slate-100">
+                                {savedCases.map(c => (
+                                    <div key={c.id} onClick={() => handleSelectCase(c)} className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer group transition-colors duration-200">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-2 rounded-lg ${
+                                                c.workflowType === 'consulting' ? 'bg-green-100 text-green-600' : 
+                                                (c.workflowType === 'businessFormation' ? 'bg-purple-100 text-purple-600' : 
+                                                (c.workflowType === 'landProcedure' ? 'bg-teal-100 text-teal-600' :
+                                                (c.workflowType === 'divorceConsultation' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600')))
+                                            }`}>
+                                                {c.workflowType === 'consulting' && <ChatBubbleLeftIcon className="w-6 h-6"/>}
+                                                {c.workflowType === 'businessFormation' && <BuildingOfficeIcon className="w-6 h-6"/>}
+                                                {c.workflowType === 'landProcedure' && <MapIcon className="w-6 h-6"/>}
+                                                {c.workflowType === 'divorceConsultation' && <HeartIcon className="w-6 h-6"/>}
+                                                {(!c.workflowType || c.workflowType === 'litigation') && <StyledAnalysisIcon className="w-6 h-6"/>}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{c.name}</h4>
+                                                <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                                                    <span>Cập nhật: {new Date(c.updatedAt).toLocaleDateString('vi-VN')}</span>
+                                                    <span>•</span>
+                                                    <span className="capitalize">
+                                                        {c.workflowType === 'businessFormation' ? 'Thành lập DN' : 
+                                                        (c.workflowType === 'consulting' ? 'Tư vấn' : 
+                                                        (c.workflowType === 'landProcedure' ? 'Đất đai' :
+                                                        (c.workflowType === 'divorceConsultation' ? 'Ly hôn' : 'Tranh tụng')))}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button onClick={(e) => handleDeleteCase(e, c.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100">
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </main>
+            </div>
+        );
+    }
 
-    if (!activeCase) return <CaseSelectionScreen />;
-
-    if (activeCase.workflowType === 'consulting') {
-        return <ConsultingWorkflow onPreview={setPreviewFile} onGoBack={handleGoBackToSelection} activeCase={activeCase} onCasesUpdated={loadCases} />;
+    if (currentWorkflow === 'consulting') {
+        return <ConsultingWorkflow onPreview={setPreviewFile} onGoBack={() => setShowWorkflowSelection(true)} activeCase={activeCase} onCasesUpdated={async () => setSavedCases(await getAllCasesSorted())} />;
     }
     
-    if (activeCase.workflowType === 'businessFormation') {
-        return <BusinessFormationWorkflow onPreview={setPreviewFile} onGoBack={handleGoBackToSelection} activeCase={activeCase} onCasesUpdated={loadCases} />;
+    if (currentWorkflow === 'businessFormation') {
+        return <BusinessFormationWorkflow onPreview={setPreviewFile} onGoBack={() => setShowWorkflowSelection(true)} activeCase={activeCase} onCasesUpdated={async () => setSavedCases(await getAllCasesSorted())} />;
     }
 
-    return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-             {/* Sidebar */}
-            <aside className="group transition-all duration-300 ease-in-out bg-gray-900 text-gray-400 p-4 flex flex-col h-full w-20 hover:w-64 z-30">
-                <nav className="flex-grow">
-                    <ul>
-                        {navItems.map(item => {
-                            const Icon = item.icon;
-                            const isActive = view === item.id;
-                            return (
-                                <li key={item.label} className="mb-2">
-                                    <a href="#" className={`flex items-center gap-4 p-3 rounded-lg transition-colors justify-center group-hover:justify-start ${isActive ? 'bg-gray-800 text-white font-semibold' : 'hover:bg-gray-800 hover:text-white'}`} onClick={e => { e.preventDefault(); setView(item.id); }} title={item.label}>
-                                        <Icon className="w-5 h-5 flex-shrink-0" />
-                                        <span className="transition-opacity duration-200 whitespace-nowrap opacity-0 group-hover:opacity-100">{item.label}</span>
-                                    </a>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </nav>
-                 <div className="mt-auto pt-4 border-t border-gray-700 space-y-2">
-                    <button onClick={handleBackup} title="Sao lưu" className="flex items-center gap-4 p-3 rounded-lg w-full transition-colors hover:bg-gray-800 hover:text-white justify-center group-hover:justify-start">
-                        <DownloadIcon className="w-5 h-5 flex-shrink-0" />
-                        <span className="transition-opacity duration-200 whitespace-nowrap opacity-0 group-hover:opacity-100">Sao lưu</span>
-                    </button>
-                    <button onClick={handleRestore} title="Khôi phục" className="flex items-center gap-4 p-3 rounded-lg w-full transition-colors hover:bg-gray-800 hover:text-white justify-center group-hover:justify-start">
-                        <UploadIcon className="w-5 h-5 flex-shrink-0" />
-                        <span className="transition-opacity duration-200 whitespace-nowrap opacity-0 group-hover:opacity-100">Khôi phục</span>
-                    </button>
-                </div>
-            </aside>
+    if (currentWorkflow === 'landProcedure') {
+        return <LandProcedureWorkflow onPreview={setPreviewFile} onGoBack={() => setShowWorkflowSelection(true)} activeCase={activeCase} onCasesUpdated={async () => setSavedCases(await getAllCasesSorted())} />;
+    }
 
-            {/* Main Content */}
-            <main className="flex-1 p-6 overflow-y-auto">
-                <div className="grid grid-cols-12 gap-6 h-full">
-                    {/* Left Panel */}
-                    {!isLeftPanelCollapsed && (
-                         <div className="col-span-12 lg:col-span-4 h-full flex flex-col space-y-4 relative">
-                            <button
-                                onClick={() => setIsLeftPanelCollapsed(true)}
-                                className="absolute top-1/2 -translate-y-1/2 -right-3 z-20 bg-white border border-slate-300 rounded-full p-1.5 shadow-md hover:bg-slate-100"
-                                title="Thu gọn"
-                            >
-                                <PanelCollapseIcon className="w-5 h-5 text-slate-600" />
+    if (currentWorkflow === 'divorceConsultation') {
+        return <DivorceWorkflow onPreview={setPreviewFile} onGoBack={() => setShowWorkflowSelection(true)} activeCase={activeCase} onCasesUpdated={async () => setSavedCases(await getAllCasesSorted())} />;
+    }
+
+    // Litigation Workflow (Default)
+    return (
+        <div className="flex flex-col h-screen bg-slate-100 overflow-hidden font-sans text-slate-900">
+            {/* Main Content Area */}
+            <div className="flex flex-1 overflow-hidden relative">
+                {/* Left Input Panel */}
+                <div 
+                    className={`${isLeftPanelCollapsed ? (isMobile ? 'hidden' : 'w-0 opacity-0 p-0 border-none') : (isMobile ? 'w-full absolute z-20 h-full bg-white' : 'w-2/5 opacity-100 p-6 border-r border-slate-200')} bg-white flex flex-col transition-all duration-300 ease-in-out shadow-xl lg:shadow-none flex-shrink-0`}
+                >
+                    <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                        <button onClick={() => setShowWorkflowSelection(true)} className="flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-blue-600 transition-colors"><BackIcon className="w-5 h-5"/> Tranh tụng</button>
+                        <div className="flex gap-2">
+                            <button onClick={() => setIsLeftPanelCollapsed(true)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Thu gọn">
+                                <PanelCollapseIcon className="w-6 h-6" />
                             </button>
-                            <div className="flex justify-between items-center flex-shrink-0">
-                                <button onClick={handleGoBackToSelection} className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 font-semibold"><BackIcon className="w-5 h-5" /> Chọn Vụ việc khác</button>
-                                <button onClick={handleSaveCase} disabled={isSaving} className="flex items-center gap-2 px-3 py-1.5 text-xs bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-700 disabled:bg-slate-300"><SaveCaseIcon className="w-4 h-4"/> Lưu</button>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-grow overflow-y-auto pr-2 space-y-5">
+                        <div className="space-y-3">
+                             <div className="flex items-center justify-between">
+                                <label className="block text-sm font-bold text-slate-700">Hồ sơ & Tài liệu</label>
                             </div>
-                            <div className="p-4 bg-white border rounded-lg flex-grow overflow-y-auto">
-                                <div className="space-y-4">
-                                    <FileUpload files={files} setFiles={setFiles} onPreview={setPreviewFile} />
-                                    <div>
-                                        <label htmlFor="mainQuery" className="block text-sm font-semibold text-slate-700 mb-1.5">Mục tiêu / Yêu cầu Phân tích</label>
-                                        <textarea id="mainQuery" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="VD: Phân tích hồ sơ để chuẩn bị cho phiên tòa phúc thẩm, tập trung vào các điểm yếu của bản án sơ thẩm." className="w-full h-24 p-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm"/>
+                            <FileUpload files={files} setFiles={setFiles} onPreview={setPreviewFile} />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Thông tin cơ bản</label>
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Loại vụ việc</label>
+                                    <select value={litigationType} onChange={(e) => setLitigationType(e.target.value as LitigationType)} className="w-full p-2 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                                        <option value="civil">Dân sự</option>
+                                        <option value="criminal">Hình sự</option>
+                                        <option value="administrative">Hành chính</option>
+                                    </select>
+                                </div>
+                                 <div>
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Khách hàng là...</label>
+                                    <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-300">
+                                        <button 
+                                            onClick={() => setClientPosition('left')}
+                                            className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all ${clientPosition === 'left' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                            title="Tin nhắn của khách hàng ở bên trái"
+                                        >
+                                            Trái
+                                        </button>
+                                        <button 
+                                            onClick={() => setClientPosition('not_applicable')}
+                                             className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all ${clientPosition === 'not_applicable' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                            title="Không áp dụng (Văn bản thường)"
+                                        >
+                                            N/A
+                                        </button>
+                                        <button 
+                                            onClick={() => setClientPosition('right')}
+                                             className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all ${clientPosition === 'right' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                            title="Tin nhắn của khách hàng ở bên phải"
+                                        >
+                                            Phải
+                                        </button>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Tòa án Thụ lý / Giải quyết</label>
-                                        <input 
-                                            list="courts-list" 
-                                            value={jurisdiction} 
-                                            onChange={(e) => setJurisdiction(e.target.value)} 
-                                            className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm" 
-                                            placeholder="Chọn hoặc nhập tên Tòa án..." 
-                                        />
-                                        <datalist id="courts-list">
-                                            {REGIONAL_COURTS.map(court => <option key={court} value={court} />)}
-                                        </datalist>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Vị trí Thân chủ (trong ảnh chụp màn hình)</label>
-                                        <div className="flex gap-2 rounded-lg bg-slate-100 p-1">
-                                        {([['left', 'Bên Trái'], ['not_applicable', 'Không áp dụng'], ['right', 'Bên Phải']] as const).map(([pos, label]) => (
-                                            <button key={pos} onClick={() => setClientPosition(pos)} className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${clientPosition === pos ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-white/70'}`}>{label}</button>
-                                        ))}
-                                        </div>
-                                    </div>
-                                    <button onClick={handleAnalyzeClick} disabled={isLoading} className="w-full py-2.5 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-slate-300 flex items-center justify-center gap-2">
-                                        {isLoading ? <><Loader /> <span>Đang phân tích...</span></> : (mainActionType === 'analyze' ? 'Phân tích Vụ việc' : 'Cập nhật Phân tích')}
-                                    </button>
-                                    {error && <div className="text-red-600 text-sm p-3 bg-red-50 rounded-lg">{error}</div>}
                                 </div>
                             </div>
-                        </div>
-                    )}
-
-
-                    {/* Right Panel */}
-                    <div className={`h-full overflow-y-auto relative transition-all duration-300 ${isLeftPanelCollapsed ? 'col-span-12' : 'col-span-12 lg:col-span-8'}`}>
-                        {isLeftPanelCollapsed && (
-                            <button
-                                onClick={() => setIsLeftPanelCollapsed(false)}
-                                className="absolute top-1/2 -translate-y-1/2 left-1 z-20 bg-white border border-slate-300 rounded-full p-1.5 shadow-md hover:bg-slate-100"
-                                title="Mở bảng điều khiển"
-                            >
-                                <PanelExpandIcon className="w-5 h-5 text-slate-600" />
-                            </button>
-                        )}
-                         <div className="bg-white border rounded-lg p-6 h-full">
-                            {isLoading && !report && <div className="flex flex-col items-center justify-center h-full"><div className="loading-bar-container"><div className="loading-bars"><div className="loading-bar"></div><div className="loading-bar"></div><div className="loading-bar"></div></div><p className="mt-4 text-slate-600 font-medium">AI đang phân tích, vui lòng đợi trong giây lát...</p></div></div>}
-                            {!isLoading && !report && <div className="flex flex-col items-center justify-center h-full text-center text-slate-400"><StyledAnalysisIcon className="w-16 h-16 mb-4 text-slate-300" /><p className="font-medium text-slate-600">Kết quả phân tích sẽ được hiển thị tại đây.</p></div>}
+                            <div className="mb-3">
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Tòa án thụ lý (Khu vực)</label>
+                                <input
+                                    type="text"
+                                    value={jurisdiction}
+                                    onChange={(e) => setJurisdiction(e.target.value)}
+                                    placeholder="VD: Tòa án nhân dân khu vực Hoàn Kiếm..."
+                                    className="w-full p-2 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    list="regional-courts-list-main"
+                                />
+                                <datalist id="regional-courts-list-main">
+                                    {REGIONAL_COURTS.map(court => <option key={court} value={court} />)}
+                                </datalist>
+                            </div>
                             
-                            {report && view === 'caseAnalysis' && <ReportDisplay report={report} onClearSummary={() => setReport(r => r ? {...r, quickSummary: ''} : null)} litigationType={litigationType} onUpdateUserLaws={(laws) => setReport(r => r ? {...r, userAddedLaws: laws} : null)} onUpdateReport={handleUpdateReport} caseSummary={caseSummary} clientRequestSummary={clientRequestSummary} onReanalyze={handleReanalyzeClick} isReanalyzing={isReanalyzing} files={files} onPreview={setPreviewFile} />}
-                            {view === 'documentGenerator' && <DocumentGenerator />}
-                            {view === 'quickDraft' && <QuickDraftGenerator />}
-                            {view === 'argumentMap' && <ArgumentMapView report={report} onUpdateReport={handleUpdateReport} />}
-                            {view === 'intelligentSearch' && <IntelligentSearch report={report} onSearch={handleSearch} isLoading={isLoading} error={error} />}
-                            {(view === 'dashboard' || view === 'fileManagement' || view === 'calendar' || view === 'client') && <div className="flex flex-col items-center justify-center h-full text-center text-slate-500"><h2 className="text-2xl font-bold text-slate-700">Chức năng đang phát triển</h2><p className="mt-2">Chức năng này sẽ sớm được cập nhật.</p></div>}
-                         </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Yêu cầu phân tích</label>
+                                <textarea value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nhập yêu cầu cụ thể cho AI..." className="w-full h-24 p-3 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-200 mt-auto flex flex-col gap-3 flex-shrink-0">
+                        {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">{error}</div>}
+                        
+                        {isProcessing && (
+                           <ProcessingProgress 
+                                files={files} 
+                                onContinue={() => { setIsProcessing(false); performAnalysis(files.filter(f => f.status === 'completed')); }} 
+                                onCancel={() => setIsProcessing(false)} 
+                                isFinished={isPreprocessingFinished}
+                                hasTextContent={!!query}
+                           />
+                        )}
+
+                        <div className="flex gap-3">
+                             {report && (
+                                <button onClick={handleUpdateClick} disabled={isLoading || isProcessing} className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-all disabled:opacity-50 flex justify-center items-center gap-2">
+                                    {isLoading ? <Loader /> : 'Cập nhật'}
+                                </button>
+                            )}
+                            <button onClick={handleAnalyzeClick} disabled={isLoading || isProcessing} className="flex-[2] py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg hover:shadow-blue-200/50 transition-all disabled:bg-slate-300 disabled:shadow-none flex justify-center items-center gap-2">
+                                {isLoading ? <><Loader /> <span>Đang phân tích...</span></> : <><StyledAnalysisIcon className="w-5 h-5"/> <span>{report ? 'Phân tích Lại' : 'Phân tích Vụ việc'}</span></>}
+                            </button>
+                        </div>
+                         <button onClick={handleSaveCase} disabled={isSaving} className="w-full py-2 bg-slate-800 text-white font-semibold rounded-xl hover:bg-slate-900 transition-all disabled:bg-slate-400 flex justify-center items-center gap-2">
+                            {isSaving ? <Loader /> : <SaveCaseIcon className="w-5 h-5"/>} <span>Lưu Vụ việc</span>
+                        </button>
                     </div>
                 </div>
-            </main>
 
-            {previewFile && <PreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />}
-            {report && <GlobalLitigationChat report={report} onUpdateReport={handleUpdateReport} files={files} />}
+                {/* Right Content Panel */}
+                <div className="flex-1 flex flex-col h-full min-w-0 bg-slate-50 relative">
+                    {/* Collapsed Expand Button */}
+                    {isLeftPanelCollapsed && (
+                         <button 
+                            onClick={() => setIsLeftPanelCollapsed(false)} 
+                            className="absolute top-4 left-4 z-30 p-2 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg shadow-md transition-all"
+                            title="Mở rộng bảng điều khiển"
+                        >
+                            <PanelExpandIcon className="w-6 h-6" />
+                        </button>
+                    )}
+
+                    {/* Navigation Tabs */}
+                     <div className={`bg-white border-b border-slate-200 px-4 flex items-center gap-1 overflow-x-auto no-scrollbar flex-shrink-0 ${isLeftPanelCollapsed ? 'pl-16' : ''} transition-all duration-300`}>
+                        {navItems.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setView(item.id as View)}
+                                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${view === item.id ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
+                                >
+                                    <Icon className={`w-5 h-5 ${view === item.id ? 'text-blue-600' : 'text-slate-400'}`} />
+                                    {item.label}
+                                </button>
+                            )
+                        })}
+                    </div>
+
+                    {/* View Content */}
+                    <div className="flex-grow overflow-hidden p-6 relative">
+                        <div className="h-full w-full overflow-y-auto rounded-2xl bg-white shadow-sm border border-slate-200 p-6">
+                            {view === 'caseAnalysis' && (
+                                report ? (
+                                    <>
+                                        <div className="flex justify-end mb-4">
+                                             <button onClick={() => setIsCustomizeModalOpen(true)} className="flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 text-slate-700 font-semibold rounded-lg hover:bg-slate-200 transition-colors">
+                                                <ExportIcon className="w-4 h-4" /> Xuất Báo cáo
+                                            </button>
+                                        </div>
+                                        <ReportDisplay 
+                                            report={report} 
+                                            files={files}
+                                            onPreview={setPreviewFile}
+                                            onClearSummary={() => { setReport({ ...report, quickSummary: undefined }); setMainActionType('update'); }}
+                                            litigationType={litigationType}
+                                            onUpdateUserLaws={(laws) => { setReport({ ...report, userAddedLaws: laws }); setMainActionType('update'); }}
+                                            onUpdateReport={(updatedReport) => { setReport(updatedReport); setMainActionType('update'); }}
+                                            caseSummary={caseSummary}
+                                            clientRequestSummary={clientRequestSummary}
+                                            onReanalyze={handleReanalyze}
+                                            isReanalyzing={isReanalyzing}
+                                        />
+                                    </>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                                        {isLoading ? (
+                                            <div className="text-center">
+                                                 <div className="loading-bar-container mb-4">
+                                                    <div className="loading-bars">
+                                                        <div className="loading-bar"></div>
+                                                        <div className="loading-bar"></div>
+                                                        <div className="loading-bar"></div>
+                                                    </div>
+                                                </div>
+                                                <p className="font-medium text-slate-600">AI đang phân tích hồ sơ...</p>
+                                                <p className="text-sm text-slate-400 mt-2">Quá trình này có thể mất vài phút tùy thuộc vào độ lớn của hồ sơ.</p>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <StyledAnalysisIcon className="w-16 h-16 mb-4 opacity-20" />
+                                                <p>Vui lòng tải lên hồ sơ và nhấn "Phân tích" để bắt đầu.</p>
+                                            </>
+                                        )}
+                                    </div>
+                                )
+                            )}
+                            {view === 'intelligentSearch' && (
+                                <IntelligentSearch report={report} onSearch={(q) => handleIntelligentSearch(q)} isLoading={isLoading} error={error} />
+                            )}
+                            {view === 'argumentMap' && (
+                                <ArgumentMapView report={report} onUpdateReport={(updatedReport) => { setReport(updatedReport); setMainActionType('update'); }} />
+                            )}
+                            {view === 'documentGenerator' && <DocumentGenerator />}
+                            {view === 'quickDraft' && <QuickDraftGenerator />}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Global Modals & Overlays */}
+            <PreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
+            {report && <GlobalLitigationChat report={report} onUpdateReport={setReport} files={files} />}
+            <CustomizeReportModal 
+                isOpen={isCustomizeModalOpen} 
+                onClose={() => setIsCustomizeModalOpen(false)} 
+                onExport={handleExportReport} 
+                baseReport={report || {} as AnalysisReport}
+                isExporting={isExporting}
+                libsReady={libsReady}
+            />
         </div>
     );
 }

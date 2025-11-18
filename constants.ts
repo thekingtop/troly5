@@ -85,10 +85,16 @@ export const DOC_TYPE_FIELDS: Partial<Record<DocType, string[]>> = {
       "businessName", "businessAddress", "businessLines",
       "capital", "ownerName", "ownerDob", "ownerId", "ownerAddress", "ownerPhone"
   ],
+  landRegistrationApplication: [
+      "landUser", "landAddress", "parcelNumber", "mapSheetNumber", "registrationType", "documentsAttached"
+  ],
+  divorceAgreement: [
+      "husbandName", "wifeName", "childCustodyAgreement", "propertyDivisionAgreement", "debtAgreement"
+  ]
 };
 
 export const FIELD_LABELS: Record<string, string> = {
-  // ... (Keep existing field labels as is)
+  // ... (Keep existing field labels)
   lawFirmName: "Tên tổ chức hành nghề luật sư",
   lawFirmAddress: "Địa chỉ",
   lawFirmTaxCode: "Mã số thuế",
@@ -102,13 +108,11 @@ export const FIELD_LABELS: Record<string, string> = {
   feeAmount: "Phí dịch vụ",
   paymentTerms: "Điều khoản thanh toán",
   scopeOfWork: "Phạm vi công việc",
-  // demandLetter
   recipientName: "Tên người nhận",
   recipientAddress: "Địa chỉ người nhận",
   subject: "Về việc",
   demands: "Các yêu cầu",
   deadline: "Thời hạn thực hiện",
-  // powerOfAttorney
   principalName: "Tên người ủy quyền",
   principalDob: "Ngày sinh",
   principalId: "Số CCCD/CMND (Người ủy quyền)",
@@ -124,7 +128,6 @@ export const FIELD_LABELS: Record<string, string> = {
   scope: "Phạm vi ủy quyền",
   term: "Thời hạn ủy quyền",
   location: "Địa điểm",
-  // lawsuit
   courtName: "Tên Tòa án",
   disputeType: "Loại tranh chấp",
   plaintiffName: "Tên người khởi kiện (Nguyên đơn)",
@@ -136,7 +139,6 @@ export const FIELD_LABELS: Record<string, string> = {
   caseContent: "Nội dung vụ án",
   requests: "Yêu cầu Tòa án giải quyết",
   evidence: "Chứng cứ kèm theo",
-  // divorcePetition
   petitionerName: "Tên người làm đơn",
   petitionerId: "Số CCCD/CMND (Người làm đơn)",
   petitionerAddress: "Địa chỉ (Người làm đơn)",
@@ -146,7 +148,6 @@ export const FIELD_LABELS: Record<string, string> = {
   reason: "Lý do ly hôn",
   childrenInfo: "Thông tin về con chung",
   propertyInfo: "Thông tin về tài sản chung",
-  // enforcementPetition
   enforcementAgency: "Tên Cơ quan Thi hành án",
   creditorName: "Tên người được thi hành án",
   creditorId: "Số CCCD/CMND (Người được THA)",
@@ -155,7 +156,6 @@ export const FIELD_LABELS: Record<string, string> = {
   debtorAddress: "Địa chỉ (Người phải THA)",
   judgmentDetails: "Thông tin bản án/quyết định",
   enforcementContent: "Nội dung yêu cầu thi hành án",
-  // will
   testatorName: "Tên người lập di chúc",
   testatorDob: "Ngày sinh (Người lập di chúc)",
   testatorId: "Số CCCD/CMND (Người lập di chúc)",
@@ -165,7 +165,6 @@ export const FIELD_LABELS: Record<string, string> = {
   witnesses: "Người làm chứng",
   willDate: "Ngày lập di chúc",
   willYear: "Năm lập di chúc",
-  // statementOfOpinion
   presenterName: "Tên người trình bày",
   presenterDob: "Ngày sinh",
   presenterId: "Số CCCD/CMND",
@@ -196,7 +195,6 @@ export const FIELD_LABELS: Record<string, string> = {
   finalConfirmation: "Khẳng định cuối cùng",
   courtRequest: "Đề nghị với Tòa án",
   documentDate: "Ngày làm văn bản",
-  // defenseStatement
   plaintiffArguments: "Tóm tắt các lập luận của Nguyên đơn",
   rebuttalArgument1: "Luận điểm phản bác 1",
   rebuttalEvidence1: "Chứng cứ cho Luận điểm phản bác 1",
@@ -204,7 +202,6 @@ export const FIELD_LABELS: Record<string, string> = {
   rebuttalEvidence2: "Chứng cứ cho Luận điểm phản bác 2",
   mitigatingCircumstances: "Tình tiết giảm nhẹ (nếu có)",
   defendantRequest: "Đề nghị của Bị đơn",
-  // enterpriseRegistration
   companyNameVN: "Tên công ty (tiếng Việt)",
   companyNameEN: "Tên công ty (tiếng Anh)",
   companyAddress: "Địa chỉ trụ sở chính",
@@ -219,15 +216,26 @@ export const FIELD_LABELS: Record<string, string> = {
   legalRepId: "Số CCCD/CMND (Người đại diện)",
   legalRepAddress: "Địa chỉ thường trú (Người đại diện)",
   legalRepTitle: "Chức danh (Người đại diện)",
-  // householdRegistration
   businessName: "Tên hộ kinh doanh",
   businessAddress: "Địa chỉ kinh doanh",
   capital: "Vốn kinh doanh",
   ownerPhone: "Số điện thoại (Chủ hộ)",
+  // Land & Divorce
+  landUser: "Người sử dụng đất",
+  landAddress: "Địa chỉ thửa đất",
+  parcelNumber: "Số thửa",
+  mapSheetNumber: "Tờ bản đồ số",
+  registrationType: "Loại biến động (Tặng cho, Chuyển nhượng...)",
+  documentsAttached: "Tài liệu kèm theo",
+  husbandName: "Tên Chồng",
+  wifeName: "Tên Vợ",
+  childCustodyAgreement: "Thỏa thuận về con chung",
+  propertyDivisionAgreement: "Thỏa thuận về tài sản",
+  debtAgreement: "Thỏa thuận về công nợ"
 };
 
 export const REGIONAL_COURTS: string[] = [
-    // Hà Nội (22)
+    // ... (Keep existing 355 courts list)
     "Tòa án nhân dân khu vực Ba Đình, thành phố Hà Nội",
     "Tòa án nhân dân khu vực Hoàn Kiếm, thành phố Hà Nội",
     "Tòa án nhân dân khu vực Hai Bà Trưng, thành phố Hà Nội",
@@ -250,8 +258,6 @@ export const REGIONAL_COURTS: string[] = [
     "Tòa án nhân dân khu vực Thanh Oai - Chương Mỹ - Mỹ Đức, thành phố Hà Nội",
     "Tòa án nhân dân khu vực Thạch Thất - Quốc Oai, thành phố Hà Nội",
     "Tòa án nhân dân khu vực Thường Tín - Phú Xuyên - Ứng Hòa, thành phố Hà Nội",
-
-    // TP. Hồ Chí Minh (22)
     "Tòa án nhân dân khu vực Quận 1, Thành phố Hồ Chí Minh",
     "Tòa án nhân dân khu vực Quận 3, Thành phố Hồ Chí Minh",
     "Tòa án nhân dân khu vực Quận 4, Thành phố Hồ Chí Minh",
@@ -274,8 +280,6 @@ export const REGIONAL_COURTS: string[] = [
     "Tòa án nhân dân khu vực Bình Chánh, Thành phố Hồ Chí Minh",
     "Tòa án nhân dân khu vực Nhà Bè, Thành phố Hồ Chí Minh",
     "Tòa án nhân dân khu vực Cần Giờ, Thành phố Hồ Chí Minh",
-    
-    // ... (Keep the rest of the courts list as provided in the previous full update)
     "Tòa án nhân dân khu vực Long Xuyên, tỉnh An Giang",
     "Tòa án nhân dân khu vực Châu Đốc, tỉnh An Giang",
     "Tòa án nhân dân khu vực Tân Châu, tỉnh An Giang",
@@ -285,6 +289,7 @@ export const REGIONAL_COURTS: string[] = [
     "Tòa án nhân dân khu vực An Phú - Châu Phú - Châu Thành, tỉnh An Giang",
 ];
 
+// ... (Keep existing litigationStagesByType, getStageLabel, litigationStageSuggestions, and common SCHEMAS)
 export const litigationStagesByType: Record<LitigationType, { id: LitigationStage; label: string }[]> = {
   civil: [
     { id: 'consulting', label: 'Tư vấn ban đầu' },
@@ -323,8 +328,6 @@ export const litigationStageSuggestions = [
     ...new Set(allStages.map(s => s.label))
 ];
 
-
-// --- SCHEMAS ---
 const lawArticleSchema = {
     type: Type.OBJECT,
     properties: {
@@ -444,6 +447,7 @@ export const REPORT_SCHEMA = {
     required: ["editableCaseSummary", "caseTimeline", "litigationStage", "proceduralStatus", "legalRelationship", "coreLegalIssues", "applicableLaws", "gapAnalysis", "caseProspects", "proposedStrategy"],
 };
 
+// ... (Keep existing SCHEMAS for Summary, Consulting, Business Formation)
 export const SUMMARY_EXTRACTION_SCHEMA = {
     type: Type.OBJECT,
     properties: {
@@ -577,6 +581,93 @@ export const BUSINESS_FORMATION_REPORT_SCHEMA = {
     required: ["modelComparison", "taxAnalysis", "procedureGuide", "validExpensesGuide", "legalRisks"]
 };
 
+export const LAND_PROCEDURE_REPORT_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        procedureType: { type: Type.STRING, description: "Loại thủ tục chính xác (VD: Đăng ký biến động - Chuyển nhượng, Cấp đổi GCN...)." },
+        localRegulations: { type: Type.STRING, description: "Trích dẫn cụ thể các Quyết định của UBND cấp Tỉnh nơi có đất về bảng giá đất, quy trình nội bộ, hoặc phí lệ phí. Nếu không rõ địa phương, ghi chú cần bổ sung." },
+        stepByStepGuide: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    step: { type: Type.STRING, description: "Tên bước (VD: Công chứng hợp đồng)." },
+                    description: { type: Type.STRING, description: "Mô tả chi tiết cách thực hiện." },
+                    location: { type: Type.STRING, description: "Cơ quan thực hiện (Văn phòng công chứng, VPĐKĐĐ Chi nhánh...)." },
+                    estimatedTime: { type: Type.STRING, description: "Thời gian thực tế dự kiến (có thể khác quy định)." }
+                },
+                required: ["step", "description", "location", "estimatedTime"]
+            }
+        },
+        documentChecklist: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING, description: "Tên giấy tờ." },
+                    required: { type: Type.BOOLEAN, description: "Có bắt buộc không." },
+                    notes: { type: Type.STRING, description: "Lưu ý về bản chính/bản sao, số lượng." },
+                    status: { type: Type.STRING, enum: ['missing', 'available'], description: "Trạng thái hiện tại (dựa trên thông tin cung cấp)." }
+                },
+                required: ["name", "required", "notes"]
+            }
+        },
+        financialEstimation: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    item: { type: Type.STRING, description: "Khoản phải thu (VD: Thuế TNCN, Lệ phí trước bạ)." },
+                    amount: { type: Type.STRING, description: "Số tiền ước tính hoặc công thức tính." },
+                    basis: { type: Type.STRING, description: "Căn cứ tính (VD: 2% giá trị chuyển nhượng, nhưng không thấp hơn bảng giá nhà nước)." }
+                },
+                required: ["item", "amount", "basis"]
+            }
+        },
+        legalRisksAndTips: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Các mẹo chiến thuật <cg> để hồ sơ được duyệt nhanh, tránh bị trả về, hoặc tối ưu thuế hợp pháp." }
+    },
+    required: ["procedureType", "stepByStepGuide", "documentChecklist", "financialEstimation", "legalRisksAndTips"]
+};
+
+export const DIVORCE_REPORT_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        divorceType: { type: Type.STRING, enum: ['ThuanTinh', 'DonPhuong'], description: "Loại hình ly hôn xác định dựa trên mức độ đồng thuận." },
+        custodyAnalysis: {
+            type: Type.OBJECT,
+            properties: {
+                strategy: { type: Type.STRING, description: "Chiến lược để giành quyền nuôi con." },
+                evidenceNeeded: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Chứng cứ cần thu thập để chứng minh điều kiện nuôi con." },
+                cunningTips: { type: Type.STRING, description: "Mẹo chiến thuật <cg> trong tranh chấp con cái." }
+            },
+            required: ["strategy", "evidenceNeeded", "cunningTips"]
+        },
+        assetDivision: {
+            type: Type.OBJECT,
+            properties: {
+                commonAssets: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Danh sách tài sản chung." },
+                privateAssets: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Danh sách tài sản riêng (đã xác định hoặc cần chứng minh)." },
+                divisionStrategy: { type: Type.STRING, description: "Chiến lược phân chia tài sản." },
+                cunningTips: { type: Type.STRING, description: "Mẹo chiến thuật <cg> để bảo vệ tài sản hoặc đòi quyền lợi tối đa." }
+            },
+            required: ["commonAssets", "privateAssets", "divisionStrategy", "cunningTips"]
+        },
+        procedureRoadmap: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    step: { type: Type.STRING, description: "Bước thực hiện." },
+                    description: { type: Type.STRING, description: "Mô tả chi tiết." }
+                },
+                required: ["step", "description"]
+            }
+        },
+        emotionalAndLegalAdvice: { type: Type.STRING, description: "Lời khuyên tổng hợp về mặt pháp lý và tâm lý cho khách hàng." }
+    },
+    required: ["divorceType", "custodyAnalysis", "assetDivision", "procedureRoadmap", "emotionalAndLegalAdvice"]
+};
+
 export const OPPONENT_ANALYSIS_SCHEMA = {
     type: Type.ARRAY,
     items: {
@@ -682,6 +773,40 @@ ${KNOWLEDGE_BASE_RULES}
 -   **Exit Strategy First:** Structure the entity assuming it will be sold or attract investment later. Don't just build for today.
 `;
 
+export const LAND_PROCEDURE_SYSTEM_INSTRUCTION = `
+${CUNNING_LAWYER_PERSONA}
+${KNOWLEDGE_BASE_RULES}
+**Primary Task: Land Variation & Procedure Specialist (Đất đai - Sổ đỏ)**
+You are a specialist in Vietnamese Land Law, focused on "Đăng ký biến động" (Land Variation Registration).
+
+**Term Clarification:**
+- Understand "Sang tên sổ đỏ" or "Sang sổ" as **Transfer of Land Use Rights (Chuyển nhượng)** or **Gift (Tặng cho)** leading to registration of variation.
+- Understand "Chuyển đổi nhu cầu" as **Change of Land Use Purpose (Chuyển mục đích sử dụng đất)**.
+
+**Land-Specific "Cunning" Directives:**
+1.  **Local Regulations (CRITICAL):** You MUST reference specific decisions of the Provincial People's Committee (UBND Cấp Tỉnh) regarding land prices and administrative procedures for the *specific location provided* (e.g., Decision on Land Price List in Hanoi 2024).
+2.  **Tax Optimization:** In \`financialEstimation\`, calculate taxes (TNCN, Registration Fee) based on the *higher* of the Contract Price vs. State Price List.
+    -   *Tip:* If the contract price is unreasonably low, warn about the risk of tax audit ("Truy thu thuế").
+    -   *Tip:* Advise on legal deductions for TNCN (e.g., only house exemption).
+3.  **Document Checklist:** Be extremely precise. Missing one paper leads to rejection ("Trả hồ sơ").
+4.  **"Làm luật" Awareness:** Subtly advise on how to deal with bureaucratic delays without suggesting bribery. E.g., "Ensure your file is perfect to give them no excuse to delay."
+`;
+
+export const DIVORCE_SYSTEM_INSTRUCTION = `
+${CUNNING_LAWYER_PERSONA}
+${KNOWLEDGE_BASE_RULES}
+**Primary Task: Divorce Strategy Consultant**
+You are a strategic divorce lawyer. Your goal is to secure the best outcome for the client regarding Custody and Assets.
+
+**Divorce-Specific "Cunning" Directives:**
+1.  **Custody Strategy:** In \`custodyAnalysis\`, focus on *evidence*. Who picks up the kid? Who pays tuition? Advise the client to start gathering this evidence *now* before filing.
+2.  **Asset Protection:** In \`assetDivision\`, help distinguish Common vs. Private assets.
+    -   *Tip:* "Trace the money flow." If money for a house came from parents, get a confirmation deed *now*.
+3.  **Procedural Tactics:**
+    -   *Amicable (Thuận tình):* Fast, cheap. Focus on drafting a solid agreement that the court won't void.
+    -   *Unilateral (Đơn phương):* War. Prepare for mediation failure. Secure temporary custody immediately.
+`;
+
 export const SUMMARY_EXTRACTION_SYSTEM_INSTRUCTION = "You are an AI assistant specialized in reading legal documents and conversations. Your task is to extract two key pieces of information: a neutral, factual summary of the case events, and a clear summary of the client's main goal or request. Provide the output as a single, valid JSON object.";
 
 export const DOCUMENT_GENERATION_SYSTEM_INSTRUCTION = `You are a professional Vietnamese legal drafting assistant. You will be given a JSON object containing the full context of a legal case and a specific user request. Your task is to draft a complete, professional, and accurate legal document (e.g., a lawsuit, a statement, a letter) based *only* on the provided information. The document must be well-structured, use appropriate legal terminology, and be ready for a lawyer to review.`;
@@ -748,6 +873,26 @@ ${KNOWLEDGE_BASE_RULES}
 You are a dynamic AI business formation advisor. The lawyer is continuing a conversation about a business formation case. You will receive the original report, the chat history, and the lawyer's new message (which may include new files). Your task is to:
 1.  Provide a direct, helpful, and strategic response to the lawyer's new message, maintaining the 'Cunning Lawyer' persona. Speak like a real expert, use concise and impactful language.
 2.  **CRITICAL:** If the lawyer provides **new business details (capital, location) or asks to pivot the strategy**, you MUST update the relevant fields in the \`BusinessFormationReport\` JSON object (e.g., \`recommendation\`, \`taxAnalysis\`, \`regulatoryArbitrage\`). The report must evolve with the conversation.
+3.  Format your response as: \`[Your chat response]\n--UPDATES--\n[The updated JSON object, or 'null' if no updates are needed]\`
+`;
+
+export const LAND_PROCEDURE_CHAT_UPDATE_SYSTEM_INSTRUCTION = `
+${CUNNING_LAWYER_PERSONA}
+${KNOWLEDGE_BASE_RULES}
+**Primary Task: Update Land Procedure Case Chat**
+You are a dynamic AI land law specialist.
+1.  Provide direct, helpful responses. Be "Cunning" about avoiding tax pitfalls and speeding up procedures.
+2.  **CRITICAL:** If the lawyer provides **new location details (Province/City) or changes the transaction type**, you MUST update the relevant fields in the \`LandProcedureReport\` JSON object (especially \`financialEstimation\`, \`documentChecklist\`, and \`localRegulations\`).
+3.  Format your response as: \`[Your chat response]\n--UPDATES--\n[The updated JSON object, or 'null' if no updates are needed]\`
+`;
+
+export const DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION = `
+${CUNNING_LAWYER_PERSONA}
+${KNOWLEDGE_BASE_RULES}
+**Primary Task: Update Divorce Case Chat**
+You are a dynamic AI divorce strategist.
+1.  Provide empathetic but strategically sharp responses. Focus on "Winning" custody and assets.
+2.  **CRITICAL:** If the lawyer provides **new asset details, evidence of infidelity, or child's preference**, you MUST update the relevant fields in the \`DivorceReport\` JSON object.
 3.  Format your response as: \`[Your chat response]\n--UPDATES--\n[The updated JSON object, or 'null' if no updates are needed]\`
 `;
 

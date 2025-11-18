@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { generateDocumentFromTemplate, extractInfoFromFile, generateFieldContent } from '../services/geminiService.ts';
 import { Loader } from './Loader.tsx';
@@ -29,6 +30,8 @@ const DOC_TYPE_LABELS: Record<DocType, string> = {
     defenseStatement: 'Bản bào chữa cho Bị đơn',
     enterpriseRegistration: 'Hồ sơ Đăng ký Doanh nghiệp',
     householdRegistration: 'Hồ sơ Đăng ký Hộ kinh doanh',
+    landRegistrationApplication: 'Đơn Đăng ký Biến động Đất đai',
+    divorceAgreement: 'Thỏa thuận Ly hôn',
 };
 
 const FieldLabel: React.FC<{ fieldName: string }> = ({ fieldName }) => {
@@ -140,12 +143,12 @@ export const DocumentGenerator: React.FC = () => {
                      {docType && (
                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg animate-fade-in">
                             <div className="flex justify-between items-center mb-4">
-                               <h3 className="text-base font-bold text-slate-800">2. Cung cấp thông tin</h3>
-                               <label className="relative flex items-center gap-2 px-3 py-1.5 text-xs bg-white text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 cursor-pointer disabled:opacity-50 font-semibold">
+                                <h3 className="text-base font-bold text-slate-800">2. Cung cấp thông tin</h3>
+                                <label className="relative flex items-center gap-2 px-3 py-1.5 text-xs bg-white text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 cursor-pointer disabled:opacity-50 font-semibold">
                                    {isExtracting ? <Loader/> : <FileImportIcon className="w-4 h-4" />}
                                    <span>Điền từ tệp...</span>
                                    <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleFileChange} disabled={isExtracting} accept=".pdf,.doc,.docx" />
-                               </label>
+                                </label>
                             </div>
                             <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 -mr-2">
                                {currentFields.map(field => {

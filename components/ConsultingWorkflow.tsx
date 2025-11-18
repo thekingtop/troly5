@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FileUpload } from './FileUpload.tsx';
 import { Loader } from './Loader.tsx';
@@ -17,6 +16,16 @@ import { ChatBubbleLeftIcon } from './icons/ChatBubbleLeftIcon.tsx';
 import { DOC_TYPE_FIELDS, FIELD_LABELS, REGIONAL_COURTS } from '../constants.ts';
 
 // --- Internal Icons ---
+const PanelCollapseIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+  </svg>
+);
+const PanelExpandIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+  </svg>
+);
 const MinimizeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
@@ -342,7 +351,9 @@ export const ConsultingWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBac
     const [summarizationError, setSummarizationError] = useState<string | null>(null);
 
     const [listeningField, setListeningField] = useState<'disputeContent' | 'clientRequest' | null>(null);
+    const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
     const recognitionRef = useRef<any>(null);
+    const isMobile = useIsMobile();
 
     const defaultPrompt = `Soạn một bình luận trả lời ngắn gọn, chuyên nghiệp và thể hiện sự đồng cảm cho một bài đăng trên mạng xã hội. Dựa trên phân tích, hãy nhấn mạnh vào một rủi ro pháp lý nghiêm trọng nhất mà họ đang đối mặt và gợi ý 1-2 bước hành động đầu tiên họ nên làm. Kết thúc bằng việc mời họ liên hệ để được tư vấn chi tiết và giải quyết vấn đề.`;
 
@@ -363,6 +374,10 @@ export const ConsultingWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBac
             setClientRequest(activeCase.clientRequest || '');
             setConsultingReport(activeCase.consultingReport || null);
             setCaseName(activeCase.name);
+            // Auto collapse if report exists
+            if (activeCase.consultingReport) {
+                setIsLeftPanelCollapsed(true);
+            }
         }
     }, [activeCase]);
 
@@ -476,6 +491,7 @@ export const ConsultingWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBac
         try {
             const result = await analyzeConsultingCase(filesToAnalyze, disputeContent, clientRequest);
             setConsultingReport(result);
+            setIsLeftPanelCollapsed(true); // Auto collapse sidebar on success
         } catch (err) {
             setAnalysisError(err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định khi phân tích.");
         } finally {
@@ -541,12 +557,18 @@ export const ConsultingWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBac
     };
 
     return (
-        <div className="flex h-screen bg-slate-100 overflow-hidden">
-            {/* Left Panel (Keep as is) */}
-            <div className="w-full lg:w-2/5 h-full flex flex-col p-6 space-y-4 bg-white border-r border-slate-200">
-                <div className="flex justify-between items-center flex-shrink-0">
+        <div className="flex h-screen bg-slate-100 overflow-hidden relative">
+            {/* Left Panel */}
+            <div 
+                className={`${isLeftPanelCollapsed ? (isMobile ? 'hidden' : 'w-0 opacity-0 p-0 border-none') : (isMobile ? 'w-full absolute z-20 h-full bg-white' : 'w-2/5 opacity-100 p-6 border-r border-slate-200')} bg-white flex flex-col transition-all duration-300 ease-in-out shadow-xl lg:shadow-none flex-shrink-0`}
+            >
+                <div className="flex justify-between items-center mb-4 flex-shrink-0">
                     <button onClick={handleBackClick} className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 font-semibold"><BackIcon className="w-5 h-5" /> Chọn lại Nghiệp vụ</button>
-                    <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-3 py-1.5 text-xs bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-700 disabled:bg-slate-300"><SaveCaseIcon className="w-4 h-4" /> Lưu</button>
+                     <div className="flex gap-2">
+                         <button onClick={() => setIsLeftPanelCollapsed(true)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Thu gọn">
+                            <PanelCollapseIcon className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
                 <div className="flex-grow overflow-y-auto pr-2 -mr-4 space-y-4">
                     <FileUpload files={files} setFiles={setFiles} onPreview={onPreview} />
@@ -567,22 +589,34 @@ export const ConsultingWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBac
                         </div>
                     </div>
                 </div>
-                <div className="flex-shrink-0 pt-4 border-t">
+                <div className="flex-shrink-0 pt-4 border-t flex flex-col gap-2">
                     {summarizationError && <Alert message={summarizationError} type="error" />}
                     <button onClick={handleAnalyzeClick} disabled={isAnalyzing || isProcessing} className="w-full py-2.5 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-slate-300 flex items-center justify-center gap-2">
                         {isAnalyzing ? <><Loader /> <span>Đang phân tích...</span></> : (isProcessing ? <><Loader /> <span>Đang xử lý tệp...</span></> : 'Phân tích Tư vấn')}
                     </button>
+                    <button onClick={handleSave} disabled={isSaving} className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-700 disabled:bg-slate-300"><SaveCaseIcon className="w-4 h-4" /> Lưu Vụ việc</button>
                 </div>
             </div>
 
             {/* Right Panel */}
-            <main className="flex-1 p-6 overflow-y-auto">
+            <main className="flex-1 p-6 overflow-y-auto relative h-full">
+                {/* Expand Button */}
+                 {isLeftPanelCollapsed && (
+                     <button 
+                        onClick={() => setIsLeftPanelCollapsed(false)} 
+                        className="absolute top-4 left-4 z-30 p-2 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg shadow-md transition-all"
+                        title="Mở rộng bảng điều khiển"
+                    >
+                        <PanelExpandIcon className="w-6 h-6" />
+                    </button>
+                )}
+
                  {isAnalyzing && !consultingReport && <div className="flex flex-col items-center justify-center h-full"><div className="loading-bar-container"><div className="loading-bars"><div className="loading-bar"></div><div className="loading-bar"></div><div className="loading-bar"></div></div><p className="mt-4 text-slate-600 font-medium">AI đang phân tích, vui lòng đợi trong giây lát...</p></div></div>}
                  {!isAnalyzing && !consultingReport && <div className="flex flex-col items-center justify-center h-full text-center text-slate-400"><ChatBubbleLeftIcon className="w-16 h-16 mb-4 text-slate-300" /><p className="font-medium text-slate-600">Kết quả tư vấn sẽ được hiển thị tại đây.</p></div>}
                  {analysisError && <div className="flex items-center justify-center h-full"><Alert message={analysisError} type="error" /></div>}
                  
                  {consultingReport && (
-                    <div className="space-y-6">
+                    <div className="space-y-6 pb-20">
                         {/* Quick Answer Section */}
                         <div className="p-4 bg-white border border-blue-200 rounded-lg shadow-lg">
                             <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><LightbulbIcon className="w-6 h-6 text-amber-500" />Câu trả lời Tư vấn Nhanh</h3>
@@ -590,7 +624,7 @@ export const ConsultingWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBac
                                 <pre className="whitespace-pre-wrap font-sans text-sm text-slate-800">{consultingReport.conciseAnswer}</pre>
                             </div>
                              <div className="flex items-center justify-between mt-3">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-xs font-semibold text-slate-500">Tinh chỉnh:</span>
                                     <button onClick={() => handleRefineAnswer('concise')} className="px-2 py-1 text-xs bg-slate-200 rounded-md hover:bg-slate-300">Ngắn gọn</button>
                                     <button onClick={() => handleRefineAnswer('empathetic')} className="px-2 py-1 text-xs bg-slate-200 rounded-md hover:bg-slate-300">Đồng cảm</button>
@@ -904,6 +938,8 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
     const [isSaving, setIsSaving] = useState(false);
     const [caseName, setCaseName] = useState('');
     const [view, setView] = useState<'analysis' | 'registration'>('analysis');
+    const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+    const isMobile = useIsMobile();
 
     useEffect(() => {
         if (activeCase?.workflowType === 'businessFormation') {
@@ -919,6 +955,9 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
             });
             setReport(activeCase.businessFormationReport || null);
             setCaseName(activeCase.name);
+            if (activeCase.businessFormationReport) {
+                setIsLeftPanelCollapsed(true);
+            }
         }
     }, [activeCase]);
 
@@ -966,6 +1005,7 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
             const result = await analyzeBusinessFormation(businessIdea, additionalInfo);
             setReport(result);
             setView('analysis'); // Switch to analysis view upon getting a new report
+            setIsLeftPanelCollapsed(true); // Auto collapse sidebar
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Lỗi không xác định');
         } finally {
@@ -974,12 +1014,18 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
     };
 
     return (
-        <div className="flex h-screen bg-slate-100 overflow-hidden">
-             {/* Left Panel (Keep as is) */}
-            <div className="w-full lg:w-2/5 h-full flex flex-col p-6 space-y-4 bg-white border-r border-slate-200">
-                <div className="flex justify-between items-center flex-shrink-0">
+        <div className="flex h-screen bg-slate-100 overflow-hidden relative">
+             {/* Left Panel */}
+            <div 
+                className={`${isLeftPanelCollapsed ? (isMobile ? 'hidden' : 'w-0 opacity-0 p-0 border-none') : (isMobile ? 'w-full absolute z-20 h-full bg-white' : 'w-2/5 opacity-100 p-6 border-r border-slate-200')} bg-white flex flex-col transition-all duration-300 ease-in-out shadow-xl lg:shadow-none flex-shrink-0`}
+            >
+                <div className="flex justify-between items-center flex-shrink-0 mb-4">
                     <button onClick={handleBackClick} className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 font-semibold"><BackIcon className="w-5 h-5" /> Chọn lại Nghiệp vụ</button>
-                    <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-3 py-1.5 text-xs bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-700 disabled:bg-slate-300"><SaveCaseIcon className="w-4 h-4" /> Lưu</button>
+                    <div className="flex gap-2">
+                         <button onClick={() => setIsLeftPanelCollapsed(true)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Thu gọn">
+                            <PanelCollapseIcon className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
                  <div className="flex-grow overflow-y-auto pr-2 -mr-4 space-y-4">
                     <h2 className="text-xl font-bold text-slate-800">Tư vấn Thành lập Doanh nghiệp</h2>
@@ -996,27 +1042,39 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
                         </div>
                     </div>
                  </div>
-                 <div className="flex-shrink-0 pt-4 border-t">
+                 <div className="flex-shrink-0 pt-4 border-t flex flex-col gap-2">
                     <button onClick={handleAnalyze} disabled={isLoading} className="w-full py-2.5 px-4 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 disabled:bg-slate-300 flex items-center justify-center gap-2">
                         {isLoading ? <><Loader /> <span>Đang phân tích...</span></> : 'Phân tích & Đề xuất Mô hình'}
                     </button>
+                    <button onClick={handleSave} disabled={isSaving} className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-700 disabled:bg-slate-300"><SaveCaseIcon className="w-4 h-4" /> Lưu Vụ việc</button>
                 </div>
             </div>
              {/* Right Panel */}
-             <main className="flex-1 p-6 overflow-y-auto">
+             <main className="flex-1 p-6 overflow-y-auto relative h-full">
+                {/* Expand Button */}
+                {isLeftPanelCollapsed && (
+                     <button 
+                        onClick={() => setIsLeftPanelCollapsed(false)} 
+                        className="absolute top-4 left-4 z-30 p-2 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg shadow-md transition-all"
+                        title="Mở rộng bảng điều khiển"
+                    >
+                        <PanelExpandIcon className="w-6 h-6" />
+                    </button>
+                )}
+
                 {isLoading && !report && <div className="flex flex-col items-center justify-center h-full"><Loader /><p className="mt-2 text-slate-600">AI đang phân tích...</p></div>}
                 {!isLoading && !report && <div className="flex flex-col items-center justify-center h-full text-center text-slate-400"><p>Kết quả tư vấn sẽ hiển thị ở đây.</p></div>}
                 {error && <Alert message={error} type="error" />}
                 {report && (
                     <>
-                    <div className="mb-4">
+                    <div className="mb-4 pl-12">
                         <div className="inline-flex rounded-md shadow-sm bg-white border border-slate-200" role="group">
                              <button type="button" onClick={() => setView('analysis')} className={`px-4 py-2 text-sm font-semibold border-r border-slate-200 rounded-l-lg ${view === 'analysis' ? 'text-white bg-purple-600' : 'text-slate-700 hover:bg-slate-50'}`}>Báo cáo Phân tích</button>
                             <button type="button" onClick={() => setView('registration')} className={`px-4 py-2 text-sm font-semibold rounded-r-lg ${view === 'registration' ? 'text-white bg-purple-600' : 'text-slate-700 hover:bg-slate-50'}`}>Tạo Hồ sơ Đăng ký</button>
                         </div>
                     </div>
                     {view === 'analysis' && (
-                        <div className="space-y-6 animate-fade-in">
+                        <div className="space-y-6 animate-fade-in pb-20">
                             <div className="p-4 bg-white border border-slate-200 rounded-lg shadow-lg">
                                 <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2"><ModelComparisonIcon className="w-6 h-6 text-purple-600" />So sánh Mô hình Kinh doanh</h3>
                                 <div className="p-3 bg-purple-50 rounded-md text-center">

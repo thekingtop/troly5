@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Part, Type } from "@google/genai";
-import type { AnalysisReport, FileCategory, UploadedFile, DocType, FormData, LitigationStage, LitigationType, ConsultingReport, ParagraphGenerationOptions, ChatMessage, ArgumentNode, DraftingMode, OpponentArgument, BusinessFormationReport } from '../types.ts';
+import type { AnalysisReport, FileCategory, UploadedFile, DocType, FormData, LitigationStage, LitigationType, ConsultingReport, ParagraphGenerationOptions, ChatMessage, ArgumentNode, DraftingMode, OpponentArgument, BusinessFormationReport, LandProcedureReport, DivorceReport } from '../types.ts';
 import { 
     SYSTEM_INSTRUCTION, 
     REANALYSIS_SYSTEM_INSTRUCTION,
@@ -31,6 +31,12 @@ import {
     BUSINESS_FORMATION_CHAT_UPDATE_SYSTEM_INSTRUCTION,
     TACTICAL_DRAFTING_INSTRUCTION,
     DEVIL_ADVOCATE_SYSTEM_INSTRUCTION,
+    LAND_PROCEDURE_SYSTEM_INSTRUCTION,
+    LAND_PROCEDURE_REPORT_SCHEMA,
+    LAND_PROCEDURE_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+    DIVORCE_SYSTEM_INSTRUCTION,
+    DIVORCE_REPORT_SCHEMA,
+    DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION
 } from '../constants.ts';
 
 const API_KEY = import.meta.env.VITE_API_KEY;
@@ -166,6 +172,9 @@ const getFileContentParts = async (files: UploadedFile[]): Promise<{ fileContent
 
 
 // --- API Service Functions ---
+// ... (Keep existing analyze functions: categorizeMultipleFiles, extractSummariesFromFiles, analyzeCaseFiles, reanalyzeCaseWithCorrections)
+
+// ... (Keep analyzeConsultingCase, analyzeBusinessFormation, continueBusinessFormationChat, generateConsultingDocument, summarizeText, refineQuickAnswer, continueConsultingChat, continueLitigationChat, generateContextualDocument, generateDocumentFromTemplate, generateParagraph, refineText, generateFieldContent, extractInfoFromFile, generateReportSummary, explainLaw, continueContextualChat, intelligentSearchQuery, generateArgumentText, chatAboutArgumentNode, analyzeOpponentArguments, predictOpponentArguments, runDevilAdvocateAnalysis)
 
 export const categorizeMultipleFiles = async (files: File[]): Promise<Record<string, FileCategory>> => {
     if (files.length === 0) {
@@ -403,7 +412,6 @@ Dựa trên báo cáo đã được điều chỉnh ở trên làm nguồn thôn
   }
 };
 
-
 export const analyzeConsultingCase = async (
     files: UploadedFile[],
     disputeContent: string,
@@ -550,7 +558,6 @@ export const continueBusinessFormationChat = async (
         throw handleGeminiError(error, `trao đổi về thành lập doanh nghiệp`);
     }
 };
-
 
 
 export const generateConsultingDocument = async (
@@ -1355,4 +1362,213 @@ export const runDevilAdvocateAnalysis = async (
   } catch (error) {
     throw handleGeminiError(error, 'chạy giả lập đối thủ');
   }
+};
+
+// --- NEW: Land Procedure Analysis ---
+export const analyzeLandProcedure = async (
+    transactionType: string,
+    landAddress: string,
+    files: UploadedFile[]
+): Promise<LandProcedureReport> => {
+    try {
+        const { fileContentParts, multimodalParts } = await getFileContentParts(files);
+        const filesContent = fileContentParts.length > 0 ? fileContentParts.join('\n\n') : 'Không có tệp.';
+
+        const prompt = `
+        **THÔNG TIN ĐẦU VÀO:**
+        - Loại giao dịch/biến động: ${transactionType}
+        - Địa chỉ thửa đất (QUAN TRỌNG ĐỂ XÁC ĐỊNH QUY ĐỊNH ĐỊA PHƯƠNG): ${landAddress}
+        
+        **HỒ SƠ KÈM THEO:**
+        ${filesContent}
+
+        **YÊU CẦU:**
+        Phân tích và trả về báo cáo hướng dẫn thủ tục Đăng ký biến động đất đai (Sổ đỏ).
+        `;
+
+        const allParts: Part[] = [...multimodalParts, { text: prompt }];
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: allParts },
+            config: {
+                systemInstruction: LAND_PROCEDURE_SYSTEM_INSTRUCTION,
+                responseMimeType: "application/json",
+                responseSchema: LAND_PROCEDURE_REPORT_SCHEMA,
+                temperature: 0.2,
+            }
+        });
+
+        if (!response || typeof response.text !== 'string') {
+             throw new Error("AI không trả về kết quả phân tích đất đai hợp lệ.");
+        }
+        const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
+        return JSON.parse(jsonText);
+    } catch (error) {
+        throw handleGeminiError(error, 'phân tích thủ tục đất đai');
+    }
+};
+
+export const continueLandChat = async (
+    report: LandProcedureReport,
+    chatHistory: ChatMessage[],
+    newMessage: string,
+    newFiles: UploadedFile[]
+): Promise<{ chatResponse: string; updatedReport: LandProcedureReport | null }> => {
+    try {
+        const { fileContentParts, multimodalParts } = await getFileContentParts(newFiles);
+        const newFilesContent = fileContentParts.length > 0 ? `\n\nNỘI DUNG TỆP MỚI:\n---\n${fileContentParts.join('\n\n')}\n---` : '';
+        
+        const conversationHistoryPrompt = chatHistory
+            .map(msg => `${msg.role === 'user' ? 'Luật sư' : 'Trợ lý AI'}: ${msg.content}`)
+            .join('\n');
+            
+        const { globalChatHistory, ...reportContext } = report;
+
+        const prompt = `
+        BÁO CÁO ĐẤT ĐAI GỐC (JSON):
+        \`\`\`json
+        ${JSON.stringify(reportContext, null, 2)}
+        \`\`\`
+        
+        LỊCH SỬ:
+        ${conversationHistoryPrompt}
+        
+        YÊU CẦU MỚI:
+        ${newMessage}
+        ${newFilesContent}
+        `;
+        
+        const allParts: Part[] = [...multimodalParts, { text: prompt }];
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: allParts },
+            config: {
+                systemInstruction: LAND_PROCEDURE_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+                temperature: 0.5,
+            }
+        });
+
+        if (!response || typeof response.text !== 'string') throw new Error("AI error");
+        
+        const parts = response.text.trim().split('---UPDATES---');
+        const chatResponse = parts[0].trim();
+        let updatedReport: LandProcedureReport | null = null;
+        
+        if (parts.length > 1) {
+            try {
+                const jsonText = parts[1].trim().replace(/^```json\s*|```$/g, '');
+                if (jsonText && jsonText !== 'null') updatedReport = JSON.parse(jsonText);
+            } catch (e) { console.error(e); }
+        }
+        
+        return { chatResponse, updatedReport };
+
+    } catch (error) {
+        throw handleGeminiError(error, 'trao đổi về thủ tục đất đai');
+    }
+};
+
+// --- NEW: Divorce Analysis ---
+export const analyzeDivorceCase = async (
+    divorceContext: string,
+    files: UploadedFile[]
+): Promise<DivorceReport> => {
+    try {
+        const { fileContentParts, multimodalParts } = await getFileContentParts(files);
+        const filesContent = fileContentParts.length > 0 ? fileContentParts.join('\n\n') : 'Không có tệp.';
+
+        const prompt = `
+        **THÔNG TIN VỤ VIỆC LY HÔN:**
+        ${divorceContext}
+        
+        **HỒ SƠ KÈM THEO:**
+        ${filesContent}
+
+        **YÊU CẦU:**
+        Phân tích chiến lược ly hôn, tập trung vào Quyền nuôi con và Phân chia tài sản.
+        `;
+
+        const allParts: Part[] = [...multimodalParts, { text: prompt }];
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: allParts },
+            config: {
+                systemInstruction: DIVORCE_SYSTEM_INSTRUCTION,
+                responseMimeType: "application/json",
+                responseSchema: DIVORCE_REPORT_SCHEMA,
+                temperature: 0.3,
+            }
+        });
+
+        if (!response || typeof response.text !== 'string') {
+             throw new Error("AI không trả về kết quả phân tích ly hôn hợp lệ.");
+        }
+        const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
+        return JSON.parse(jsonText);
+    } catch (error) {
+        throw handleGeminiError(error, 'phân tích vụ việc ly hôn');
+    }
+};
+
+export const continueDivorceChat = async (
+    report: DivorceReport,
+    chatHistory: ChatMessage[],
+    newMessage: string,
+    newFiles: UploadedFile[]
+): Promise<{ chatResponse: string; updatedReport: DivorceReport | null }> => {
+    try {
+         const { fileContentParts, multimodalParts } = await getFileContentParts(newFiles);
+        const newFilesContent = fileContentParts.length > 0 ? `\n\nNỘI DUNG TỆP MỚI:\n---\n${fileContentParts.join('\n\n')}\n---` : '';
+        
+        const conversationHistoryPrompt = chatHistory
+            .map(msg => `${msg.role === 'user' ? 'Luật sư' : 'Trợ lý AI'}: ${msg.content}`)
+            .join('\n');
+            
+        const { globalChatHistory, ...reportContext } = report;
+
+        const prompt = `
+        BÁO CÁO LY HÔN GỐC (JSON):
+        \`\`\`json
+        ${JSON.stringify(reportContext, null, 2)}
+        \`\`\`
+        
+        LỊCH SỬ:
+        ${conversationHistoryPrompt}
+        
+        YÊU CẦU MỚI:
+        ${newMessage}
+        ${newFilesContent}
+        `;
+        
+        const allParts: Part[] = [...multimodalParts, { text: prompt }];
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: allParts },
+            config: {
+                systemInstruction: DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+                temperature: 0.5,
+            }
+        });
+
+        if (!response || typeof response.text !== 'string') throw new Error("AI error");
+        
+        const parts = response.text.trim().split('---UPDATES---');
+        const chatResponse = parts[0].trim();
+        let updatedReport: DivorceReport | null = null;
+        
+        if (parts.length > 1) {
+            try {
+                const jsonText = parts[1].trim().replace(/^```json\s*|```$/g, '');
+                if (jsonText && jsonText !== 'null') updatedReport = JSON.parse(jsonText);
+            } catch (e) { console.error(e); }
+        }
+        
+        return { chatResponse, updatedReport };
+    } catch (error) {
+        throw handleGeminiError(error, 'trao đổi về vụ việc ly hôn');
+    }
 };
