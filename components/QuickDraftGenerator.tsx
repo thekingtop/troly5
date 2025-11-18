@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-// FIX: Import ParagraphGenerationOptions from the correct source file.
 import { generateParagraph, refineText } from '../services/geminiService.ts';
 import type { ParagraphGenerationOptions } from '../types.ts';
 import { Loader } from './Loader.tsx';
@@ -48,12 +47,40 @@ const RadioGroup: React.FC<{
     </div>
 );
 
+// --- Helper to render text with tactical annotations ---
+const TacticalTextRenderer: React.FC<{ text: string }> = ({ text }) => {
+    const parts = text.split(/(<tactical tip=".*?">.*?<\/tactical>)/g);
+    return (
+        <div className="whitespace-pre-wrap break-words text-slate-800 font-sans pt-8">
+            {parts.map((part, index) => {
+                const match = part.match(/<tactical tip="(.*?)">(.*?)<\/tactical>/);
+                if (match) {
+                    const tip = match[1];
+                    const content = match[2];
+                    return (
+                        <span key={index} className="relative group cursor-help border-b-2 border-purple-400 bg-purple-50 px-0.5 rounded text-purple-900 font-medium">
+                            {content}
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                                <strong className="block text-amber-400 mb-1">Mẹo chiến thuật:</strong>
+                                {tip}
+                                <svg className="absolute text-gray-800 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
+                            </span>
+                        </span>
+                    );
+                }
+                return <span key={index}>{part}</span>;
+            })}
+        </div>
+    );
+};
+
 export const QuickDraftGenerator: React.FC = () => {
     const [request, setRequest] = useState('');
     const [tone, setTone] = useState<ToneOption>('assertive');
     const [terminology, setTerminology] = useState<'legal' | 'plain'>('legal');
     const [detail, setDetail] = useState<'concise' | 'detailed'>('concise');
     const [outputFormat, setOutputFormat] = useState<'text' | 'markdown'>('text');
+    const [useTacticalMode, setUseTacticalMode] = useState(false);
 
     const [isLoading, setIsLoading] = useState(false);
     const [isRefining, setIsRefining] = useState(false);
@@ -72,7 +99,7 @@ export const QuickDraftGenerator: React.FC = () => {
 
         try {
             const options: ParagraphGenerationOptions = { tone, terminology, detail, outputFormat };
-            const result = await generateParagraph(request, options);
+            const result = await generateParagraph(request, options, useTacticalMode);
             setGeneratedText(result);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Lỗi không xác định');
@@ -89,7 +116,10 @@ export const QuickDraftGenerator: React.FC = () => {
         setRefiningMode(mode);
         
         try {
-            const refinedResult = await refineText(generatedText, mode);
+            // Remove tactical tags before refining to avoid confusing the AI, or keep them if robust enough.
+            // For simplicity, we refine the raw text.
+            const cleanText = generatedText.replace(/<tactical tip=".*?">(.*?)<\/tactical>/g, '$1');
+            const refinedResult = await refineText(cleanText, mode);
             setGeneratedText(refinedResult);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Lỗi khi hoàn thiện văn bản.');
@@ -100,7 +130,8 @@ export const QuickDraftGenerator: React.FC = () => {
     };
 
     const handleCopyToClipboard = () => {
-        navigator.clipboard.writeText(generatedText);
+        const cleanText = generatedText.replace(/<tactical tip=".*?">(.*?)<\/tactical>/g, '$1');
+        navigator.clipboard.writeText(cleanText);
     };
 
     const RefineButton: React.FC<{ mode: RefineMode, text: string }> = ({ mode, text }) => (
@@ -175,6 +206,20 @@ export const QuickDraftGenerator: React.FC = () => {
                             { value: 'markdown', label: 'Markdown' },
                         ]}
                     />
+                    
+                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                        <label className="flex items-center cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={useTacticalMode} 
+                                onChange={(e) => setUseTacticalMode(e.target.checked)}
+                                className="sr-only peer"
+                            />
+                            <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                            <span className="ms-3 text-sm font-bold text-purple-900">Bật "Chú thích Chiến thuật" (Tactical Annotation)</span>
+                        </label>
+                        <p className="text-xs text-purple-700 mt-1 ml-14">AI sẽ giải thích lý do chiến lược đằng sau các từ ngữ được chọn.</p>
+                    </div>
                 </div>
 
                 <button
@@ -198,7 +243,7 @@ export const QuickDraftGenerator: React.FC = () => {
                             <RefineButton mode="detailed" text="Chi tiết hóa"/>
                             <div className="w-px h-4 bg-slate-300"></div>
                              <button onClick={handleCopyToClipboard} className="bg-slate-200 text-slate-700 px-2.5 py-1 text-xs font-semibold rounded-md hover:bg-slate-300 transition-colors">
-                                Copy
+                                Copy (Sạch)
                             </button>
                         </div>
                     )}
@@ -214,7 +259,7 @@ export const QuickDraftGenerator: React.FC = () => {
                         </div>
                     )}
                     {generatedText && (
-                        <pre className="whitespace-pre-wrap break-words text-slate-800 font-sans pt-8">{generatedText}</pre>
+                        <TacticalTextRenderer text={generatedText} />
                     )}
                 </div>
             </div>

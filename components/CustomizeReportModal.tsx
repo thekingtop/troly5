@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import type { AnalysisReport } from '../types.ts';
 import { DragHandleIcon } from './icons/DragHandleIcon.tsx';
@@ -13,6 +12,7 @@ export interface ReportSection {
 
 const initialSections: Omit<ReportSection, 'enabled'>[] = [
   { id: 'customNotesSection', title: 'Ghi chú Tùy chỉnh' },
+  { id: 'caseTimeline', title: 'Dòng thời gian Vụ việc' },
   { id: 'legalRelationship', title: '1. Quan hệ pháp luật' },
   { id: 'proceduralStatus', title: '2. Tư cách Tố tụng' },
   { id: 'coreLegalIssues', title: '3. Vấn đề pháp lý cốt lõi' },

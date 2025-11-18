@@ -1,7 +1,9 @@
+
 import { GoogleGenAI, Part, Type } from "@google/genai";
-import type { AnalysisReport, FileCategory, UploadedFile, DocType, FormData, LitigationStage, LitigationType, ConsultingReport, ParagraphGenerationOptions, ChatMessage } from '../types.ts';
+import type { AnalysisReport, FileCategory, UploadedFile, DocType, FormData, LitigationStage, LitigationType, ConsultingReport, ParagraphGenerationOptions, ChatMessage, ArgumentNode, DraftingMode, OpponentArgument, BusinessFormationReport } from '../types.ts';
 import { 
     SYSTEM_INSTRUCTION, 
+    REANALYSIS_SYSTEM_INSTRUCTION,
     ANALYSIS_UPDATE_SYSTEM_INSTRUCTION, 
     REPORT_SCHEMA, 
     DOCUMENT_GENERATION_SYSTEM_INSTRUCTION, 
@@ -11,7 +13,24 @@ import {
     CONSULTING_REPORT_SCHEMA,
     SUMMARY_EXTRACTION_SYSTEM_INSTRUCTION,
     SUMMARY_EXTRACTION_SCHEMA,
-    RESOLUTION_CHAT_SYSTEM_INSTRUCTION
+    CONTEXTUAL_CHAT_SYSTEM_INSTRUCTION,
+    INTELLIGENT_SEARCH_SYSTEM_INSTRUCTION,
+    ARGUMENT_GENERATION_SYSTEM_INSTRUCTION,
+    ARGUMENT_NODE_CHAT_SYSTEM_INSTRUCTION,
+    OPPONENT_ANALYSIS_SYSTEM_INSTRUCTION,
+    OPPONENT_ANALYSIS_SCHEMA,
+    PREDICT_OPPONENT_ARGS_SYSTEM_INSTRUCTION,
+    PREDICT_OPPONENT_ARGS_SCHEMA,
+    nodeTypeMeta,
+    DRAFTING_MODE_LABELS,
+    QUICK_ANSWER_REFINE_SYSTEM_INSTRUCTION,
+    CONSULTING_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+    LITIGATION_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+    BUSINESS_FORMATION_SYSTEM_INSTRUCTION,
+    BUSINESS_FORMATION_REPORT_SCHEMA,
+    BUSINESS_FORMATION_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+    TACTICAL_DRAFTING_INSTRUCTION,
+    DEVIL_ADVOCATE_SYSTEM_INSTRUCTION,
 } from '../constants.ts';
 
 const API_KEY = import.meta.env.VITE_API_KEY;
@@ -34,8 +53,8 @@ const handleGeminiError = (error: any, context: string): Error => {
     const errorMessage = error.message; // Use original case for parsing
     
     // Check for common error types first
-    if (errorMessage.toLowerCase().includes("api key not valid")) {
-        message = 'Lỗi xác thực: API Key không hợp lệ hoặc bị thiếu.';
+    if (errorMessage.includes('401') || errorMessage.toUpperCase().includes('UNAUTHENTICATED')) {
+        message = 'Lỗi xác thực (401): API Key của bạn không hợp lệ, bị thiếu, hoặc đã hết hạn. Vui lòng kiểm tra lại cấu hình và thử lại.';
     } else if (errorMessage.includes('429')) {
       message = 'Vượt giới hạn yêu cầu (429): Quá nhiều yêu cầu được gửi đi. Vui lòng đợi một lát rồi thử lại.';
     } else if (errorMessage.includes('500') || errorMessage.includes('503')) {
@@ -102,39 +121,6 @@ const fileToGenerativePart = async (file: File): Promise<Part> => {
   };
 };
 
-const summarizeDocumentContent = async (fileName: string, content: string): Promise<string> => {
-    if (content.length < 2000) {
-        return content;
-    }
-
-    try {
-        const systemInstruction = "Bạn là trợ lý AI chuyên tóm tắt tài liệu pháp lý cho luật sư Việt Nam. Hãy tóm tắt ngắn gọn, tập trung vào các điểm chính. Kết quả phải bằng tiếng Việt.";
-        const prompt = `Vui lòng tóm tắt nội dung của tài liệu sau ("${fileName}"). Tập trung vào: chủ đề chính, các bên liên quan, ngày tháng quan trọng, và các thỏa thuận hoặc tranh chấp cốt lõi. Chỉ trả về nội dung tóm tắt.\n\nNỘI DUNG:\n---\n${content.substring(0, 500000)}\n---`;
-
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                systemInstruction,
-                temperature: 0.1,
-            }
-        });
-
-        // FIX: Add a check to prevent '.trim()' on undefined
-        if (response && typeof response.text === 'string') {
-            return response.text.trim();
-        }
-        
-        console.warn(`AI did not return text for summarization of ${fileName}. Proceeding with original content.`);
-        throw new Error("AI response was empty.");
-
-    } catch (error) {
-        console.error(`Lỗi khi tóm tắt nội dung cho ${fileName}:`, error);
-        const truncatedContent = content.length > 15000 ? content.substring(0, 15000) : content;
-        return `[LỖI KHI TÓM TẮT. NỘI DUNG GỐC BỊ CẮT NGẮN.]\n${truncatedContent}...`;
-    }
-};
-
 const getFileContentParts = async (files: UploadedFile[]): Promise<{ fileContentParts: string[], multimodalParts: Part[] }> => {
     const fileContentParts: string[] = [];
     const multimodalParts: Part[] = [];
@@ -172,9 +158,8 @@ const getFileContentParts = async (files: UploadedFile[]): Promise<{ fileContent
         }
       }
       
-      const processedContent = await summarizeDocumentContent(f.file.name, rawFileText);
-      const prefix = rawFileText.length > 2000 ? "TÀI LIỆU (Tóm tắt)" : "TÀI LIỆU";
-      fileContentParts.push(`--- ${prefix}: ${f.file.name} (Loại: ${categoryLabel}) ---\n${processedContent}\n--- HẾT TÀI LIỆU ---`);
+      const prefix = "TÀI LIỆU";
+      fileContentParts.push(`--- ${prefix}: ${f.file.name} (Loại: ${categoryLabel}) ---\n${rawFileText}\n--- HẾT TÀI LIỆU ---`);
     }
     return { fileContentParts, multimodalParts };
 }
@@ -221,6 +206,9 @@ export const categorizeMultipleFiles = async (files: File[]): Promise<Record<str
             }
         });
         
+        if (!response || typeof response.text !== 'string' || !response.text.trim()) {
+            throw new Error("AI không trả về dữ liệu phân loại hợp lệ.");
+        }
         const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
         const parsedResponse = JSON.parse(jsonText);
 
@@ -245,7 +233,8 @@ export const categorizeMultipleFiles = async (files: File[]): Promise<Record<str
 };
 
 export const extractSummariesFromFiles = async (
-  files: UploadedFile[]
+  files: UploadedFile[],
+  clientPosition?: 'left' | 'right' | null
 ): Promise<{ caseSummary: string; clientRequestSummary: string }> => {
   try {
     const { fileContentParts, multimodalParts } = await getFileContentParts(files);
@@ -255,7 +244,14 @@ export const extractSummariesFromFiles = async (
     }
 
     const filesContent = fileContentParts.join('\n\n');
-    const promptText = `Vui lòng phân tích các tài liệu sau đây và trích xuất tóm tắt diễn biến vụ việc và yêu cầu của khách hàng.\n\n**Hồ sơ tài liệu đính kèm:**\n${filesContent}`;
+    
+    let clientContext = '';
+    if (clientPosition) {
+        const positionText = clientPosition === 'left' ? 'bên TRÁI' : 'bên PHẢI';
+        clientContext = `\n\n**Bối cảnh quan trọng:** Phân tích này là để bảo vệ quyền lợi cho thân chủ. Trong các hình ảnh tin nhắn, thân chủ là người có tin nhắn hiển thị ở **${positionText}**. Mọi tóm tắt, đặc biệt là phần "Yêu cầu của khách hàng", cần được nhìn nhận từ góc độ của họ.`;
+    }
+
+    const promptText = `Vui lòng phân tích các tài liệu sau đây và trích xuất tóm tắt diễn biến vụ việc và yêu cầu của khách hàng.${clientContext}\n\n**Hồ sơ tài liệu đính kèm:**\n${filesContent}`;
 
     const allParts: Part[] = [...multimodalParts, { text: promptText }];
 
@@ -270,6 +266,9 @@ export const extractSummariesFromFiles = async (
       },
     });
 
+    if (!response || typeof response.text !== 'string' || !response.text.trim()) {
+        throw new Error("AI không thể trích xuất tóm tắt từ hồ sơ.");
+    }
     const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
     const result = JSON.parse(jsonText);
     
@@ -291,7 +290,9 @@ interface AnalysisUpdateContext {
 export const analyzeCaseFiles = async (
   files: UploadedFile[],
   query: string,
-  updateContext?: AnalysisUpdateContext
+  updateContext?: AnalysisUpdateContext,
+  clientPosition?: 'left' | 'right' | null,
+  jurisdiction?: string
 ): Promise<AnalysisReport> => {
   try {
     const { fileContentParts, multimodalParts } = await getFileContentParts(files);
@@ -299,12 +300,21 @@ export const analyzeCaseFiles = async (
     const currentDate = new Date().toLocaleDateString('vi-VN');
     let promptText: string;
     const systemInstruction = updateContext ? ANALYSIS_UPDATE_SYSTEM_INSTRUCTION : SYSTEM_INSTRUCTION;
+    
+    let clientContext = '';
+    if (clientPosition) {
+        const positionText = clientPosition === 'left' ? 'bên TRÁI' : 'bên PHẢI';
+        clientContext = `\n\n**CRITICAL ANALYSIS DIRECTIVE:**\n- **Client Identification:** In any provided chat screenshots, our client is the person whose messages appear on the **${positionText.toUpperCase()}** side.\n- **Your Perspective:** Your entire analysis, from timeline construction to strategy, MUST be conducted from the perspective of ADVOCATING FOR and PROTECTING this specific client. This directive is absolute and overrides any other assumptions about the client's identity.`;
+    }
+    
+    const jurisdictionContext = jurisdiction ? `\n- Tòa án thụ lý/giải quyết: ${jurisdiction}` : '';
+
 
     if (updateContext) {
-      promptText = `Cập nhật báo cáo phân tích sau đây:\n\n**BÁO CÁO HIỆN TẠI:**\n\`\`\`json\n${JSON.stringify(updateContext.report, null, 2)}\n\`\`\`\n\n**THÔNG TIN CẬP NHẬT:**\n- Giai đoạn tố tụng mới: ${updateContext.stage}\n- Yêu cầu cập nhật: "${query}"\n- Ngày hiện tại: ${currentDate}\n- Hồ sơ/Tài liệu mới: ${filesContent}\n\n**YÊU CẦU:**\nHãy tích hợp các thông tin mới và trả về một phiên bản **hoàn chỉnh và được cập nhật** của báo cáo JSON.`;
+      promptText = `Cập nhật báo cáo phân tích sau đây:\n\n**BÁO CÁO HIỆN TẠI:**\n\`\`\`json\n${JSON.stringify(updateContext.report, null, 2)}\n\`\`\`\n\n**THÔNG TIN CẬP NHẬT:**\n- Giai đoạn tố tụng mới: ${updateContext.stage}\n- Yêu cầu cập nhật: "${query}"\n- Ngày hiện tại: ${currentDate}${jurisdictionContext}${clientContext}\n- Hồ sơ/Tài liệu mới: ${filesContent}\n\n**YÊU CẦU:**\nHãy tích hợp các thông tin mới và trả về một phiên bản **hoàn chỉnh và được cập nhật** của báo cáo JSON.`;
     } else {
       const effectiveFilesContent = fileContentParts.length > 0 ? fileContentParts.join('\n\n') : 'Không có tệp nào được tải lên.';
-      promptText = `Phân tích thông tin vụ việc và trả về báo cáo JSON.\n\n**THÔNG TIN VỤ VIỆC:**\n\n**A. Bối cảnh & Yêu cầu:**\n- Ngày hiện tại: ${currentDate}.\n- Yêu cầu của luật sư (Mục tiêu phân tích): **${query}**\n\n**B. Hồ sơ tài liệu đính kèm:**\n${effectiveFilesContent}\n\n**YÊU CẦU ĐẦU RA:**\nTrả về báo cáo dưới dạng một đối tượng JSON duy nhất, hợp lệ, tuân thủ cấu trúc đã định nghĩa.`;
+      promptText = `Phân tích thông tin vụ việc và trả về báo cáo JSON.\n\n**THÔNG TIN VỤ VIỆC:**\n\n**A. Bối cảnh & Yêu cầu:**\n- Ngày hiện tại: ${currentDate}.\n- Yêu cầu của luật sư (Mục tiêu phân tích): **${query}**${jurisdictionContext}${clientContext}\n\n**B. Hồ sơ tài liệu đính kèm:**\n${effectiveFilesContent}\n\n**YÊU CẦU ĐẦU RA:**\nTrả về báo cáo dưới dạng một đối tượng JSON duy nhất, hợp lệ, tuân thủ cấu trúc đã định nghĩa.`;
     }
 
     const allParts: Part[] = [...multimodalParts, { text: promptText }];
@@ -320,6 +330,9 @@ export const analyzeCaseFiles = async (
       },
     });
 
+    if (!response || typeof response.text !== 'string' || !response.text.trim()) {
+        throw new Error("AI không trả về nội dung phân tích JSON hợp lệ. Phản hồi có thể đã bị chặn.");
+    }
     const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
     return JSON.parse(jsonText);
   } catch (error) {
@@ -327,6 +340,69 @@ export const analyzeCaseFiles = async (
     throw handleGeminiError(error, context);
   }
 };
+
+export const reanalyzeCaseWithCorrections = async (
+  correctedReport: AnalysisReport,
+  files: UploadedFile[],
+  clientPosition?: 'left' | 'right' | null
+): Promise<AnalysisReport> => {
+  try {
+    const { fileContentParts, multimodalParts } = await getFileContentParts(files);
+    const filesContent = fileContentParts.length > 0 ? fileContentParts.join('\n\n') : 'Không có tài liệu nào được cung cấp.';
+    
+    let clientContext = '';
+    if (clientPosition) {
+        const positionText = clientPosition === 'left' ? 'bên TRÁI' : 'bên PHẢI';
+        clientContext = `\n\n**CRITICAL ANALYSIS DIRECTIVE:**\n- **Client Identification:** In any provided chat screenshots, our client is the person whose messages appear on the **${positionText.toUpperCase()}** side.\n- **Your Perspective:** Your re-analysis MUST correct any previous misinterpretations and align fully with protecting this client's interests. This directive is absolute.`;
+    }
+    
+    const promptText = `**BÁO CÁO ĐÃ ĐƯỢC NGƯỜI DÙNG ĐIỀU CHỈNH (NGUỒN THÔNG TIN CHÍNH):**
+\`\`\`json
+${JSON.stringify(correctedReport, null, 2)}
+\`\`\`
+${clientContext}
+**TÀI LIỆU GỐC (DÙNG ĐỂ THAM KHẢO CHI TIẾT):**
+${filesContent}
+
+**YÊU CẦU:**
+Dựa trên báo cáo đã được điều chỉnh ở trên làm nguồn thông tin chính xác nhất, và tuân thủ tuyệt đối "CRITICAL ANALYSIS DIRECTIVE" (nếu có), hãy tiến hành phân tích lại toàn diện và trả về một đối tượng báo cáo JSON hoàn chỉnh và mới.`;
+
+    const allParts: Part[] = [...multimodalParts, { text: promptText }];
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: { parts: allParts },
+      config: {
+        systemInstruction: REANALYSIS_SYSTEM_INSTRUCTION,
+        responseMimeType: "application/json",
+        responseSchema: REPORT_SCHEMA,
+        temperature: 0.2,
+      },
+    });
+
+    if (!response || typeof response.text !== 'string' || !response.text.trim()) {
+        throw new Error("AI không trả về nội dung phân tích lại JSON hợp lệ.");
+    }
+    const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
+    const newReport = JSON.parse(jsonText);
+
+    // Preserve user-added laws and chat history from the corrected report
+    newReport.userAddedLaws = correctedReport.userAddedLaws || [];
+    newReport.prospectsChat = correctedReport.prospectsChat || [];
+    newReport.gapAnalysisChat = correctedReport.gapAnalysisChat || [];
+    newReport.strategyChat = correctedReport.strategyChat || [];
+    newReport.resolutionPlanChat = correctedReport.resolutionPlanChat || [];
+    newReport.intelligentSearchChat = correctedReport.intelligentSearchChat || [];
+    newReport.applicableLawsChat = correctedReport.applicableLawsChat || [];
+    newReport.contingencyPlanChat = correctedReport.contingencyPlanChat || [];
+
+
+    return newReport;
+  } catch (error) {
+    throw handleGeminiError(error, 'phân tích lại hồ sơ');
+  }
+};
+
 
 export const analyzeConsultingCase = async (
     files: UploadedFile[],
@@ -351,12 +427,130 @@ export const analyzeConsultingCase = async (
                 temperature: 0.3,
             }
         });
+        
+        if (!response || typeof response.text !== 'string' || !response.text.trim()) {
+            throw new Error("AI không trả về báo cáo tư vấn JSON hợp lệ.");
+        }
         const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
         return JSON.parse(jsonText);
     } catch (error) {
         throw handleGeminiError(error, 'phân tích nghiệp vụ tư vấn');
     }
 };
+
+export const analyzeBusinessFormation = async (
+    businessIdea: string,
+    additionalInfo: { capital: string; members: string; location: string }
+): Promise<BusinessFormationReport> => {
+    try {
+        const prompt = `
+        **Ý TƯỞNG KINH DOANH:**
+        ---
+        ${businessIdea}
+        ---
+
+        **THÔNG TIN BỔ SUNG:**
+        - Vốn dự kiến: ${additionalInfo.capital || "Chưa cung cấp"}
+        - Số lượng thành viên: ${additionalInfo.members || "Chưa cung cấp"}
+        - Địa điểm dự kiến: ${additionalInfo.location || "Chưa cung cấp"}
+
+        **YÊU CẦU:**
+        Dựa trên thông tin trên, hãy tạo một báo cáo phân tích chi tiết về việc thành lập doanh nghiệp.
+        `;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                systemInstruction: BUSINESS_FORMATION_SYSTEM_INSTRUCTION,
+                responseMimeType: "application/json",
+                responseSchema: BUSINESS_FORMATION_REPORT_SCHEMA,
+                temperature: 0.3,
+            }
+        });
+        
+        if (!response || typeof response.text !== 'string' || !response.text.trim()) {
+            throw new Error("AI không trả về báo cáo phân tích JSON hợp lệ.");
+        }
+        const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
+        return JSON.parse(jsonText);
+    } catch (error) {
+        throw handleGeminiError(error, 'phân tích thành lập doanh nghiệp');
+    }
+};
+
+export const continueBusinessFormationChat = async (
+    report: BusinessFormationReport,
+    chatHistory: ChatMessage[],
+    newMessage: string,
+    newFiles: UploadedFile[]
+): Promise<{ chatResponse: string; updatedReport: BusinessFormationReport | null }> => {
+    try {
+        const { fileContentParts, multimodalParts } = await getFileContentParts(newFiles);
+        const newFilesContent = fileContentParts.length > 0 ? `\n\nNỘI DUNG TỆP MỚI:\n---\n${fileContentParts.join('\n\n')}\n---` : '';
+
+        const conversationHistoryPrompt = chatHistory
+            .map(msg => `${msg.role === 'user' ? 'Luật sư' : 'Trợ lý AI'}: ${msg.content}`)
+            .join('\n');
+
+        const { globalChatHistory, ...reportContext } = report; 
+
+        const prompt = `
+        BÁO CÁO GỐC (JSON):
+        \`\`\`json
+        ${JSON.stringify(reportContext, null, 2)}
+        \`\`\`
+
+        LỊCH SỬ TRAO ĐỔI:
+        ---
+        ${conversationHistoryPrompt}
+        ---
+
+        LUẬT SƯ (YÊU CẦU MỚI):
+        ${newMessage}
+        ${newFilesContent}
+        `;
+
+        const allParts: Part[] = [...multimodalParts, { text: prompt }];
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: allParts },
+            config: {
+                systemInstruction: BUSINESS_FORMATION_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+                temperature: 0.5,
+            }
+        });
+
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể tiếp tục cuộc trò chuyện.");
+        }
+
+        const responseText = response.text.trim();
+        const parts = responseText.split('---UPDATES---');
+        
+        if (parts.length < 2) {
+            return { chatResponse: responseText, updatedReport: null };
+        }
+
+        const chatResponse = parts[0].trim();
+        let updatedReport: BusinessFormationReport | null = null;
+        try {
+            const jsonText = parts[1].trim().replace(/^```json\s*|```$/g, '');
+            if (jsonText && jsonText !== 'null') {
+                updatedReport = JSON.parse(jsonText);
+            }
+        } catch (e) {
+            console.error("Failed to parse updated report JSON from AI response:", e);
+        }
+
+        return { chatResponse, updatedReport };
+
+    } catch (error) {
+        throw handleGeminiError(error, `trao đổi về thành lập doanh nghiệp`);
+    }
+};
+
 
 
 export const generateConsultingDocument = async (
@@ -375,6 +569,10 @@ export const generateConsultingDocument = async (
             contents: prompt,
             config: { systemInstruction, temperature: 0.5 }
         });
+
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không tạo được nội dung văn bản.");
+        }
         return response.text.trim();
     } catch (error) {
         throw handleGeminiError(error, 'soạn thảo văn bản tư vấn');
@@ -397,49 +595,230 @@ export const summarizeText = async (textToSummarize: string, context: 'disputeCo
             config: { systemInstruction, temperature: 0.3 }
         });
 
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể tóm tắt nội dung.");
+        }
         return response.text.trim();
     } catch (error) {
         throw handleGeminiError(error, 'tóm tắt nội dung');
     }
 };
 
-export const generateContextualDocument = async (report: AnalysisReport, userRequest: string, options?: Partial<Pick<ParagraphGenerationOptions, 'tone' | 'detail'>>): Promise<string> => {
+export const refineQuickAnswer = async (
+    originalAnswer: string,
+    mode: 'concise' | 'empathetic' | 'formal' | 'zalo_fb'
+): Promise<string> => {
     try {
-        let optionsPrompt = '';
-        if (options) {
-            const { tone, detail } = options;
-            const toneMapping = {
-                'assertive': 'Quyết đoán',
-                'persuasive': 'Thuyết phục',
-                'formal': 'Trang trọng',
-                'conciliatory': 'Hòa giải',
-                'warning': 'Cảnh báo'
-            };
-            const detailMapping = {
-                'concise': 'Ngắn gọn',
-                'detailed': 'Chi tiết'
-            };
-            
-            const optionParts = [];
-            if (tone && toneMapping[tone]) {
-                optionParts.push(`- Giọng văn: ${toneMapping[tone]}`);
-            }
-            if (detail && detailMapping[detail]) {
-                optionParts.push(`- Mức độ chi tiết: ${detailMapping[detail]}`);
-            }
+        const modeDescriptions = {
+            concise: 'ngắn gọn, súc tích hơn',
+            empathetic: 'thể hiện sự đồng cảm, chia sẻ hơn',
+            formal: 'trang trọng, mang tính pháp lý cao hơn',
+            zalo_fb: 'thêm lời chào thân thiện để gửi qua Zalo/Facebook',
+        };
 
-            if (optionParts.length > 0) {
-                optionsPrompt = `\n\nHÃY SOẠN THẢO VĂN BẢN VỚI CÁC TIÊU CHÍ SAU:\n${optionParts.join('\n')}`;
-            }
-        }
-
-        const prompt = `DỮ LIỆU VỤ VIỆC (JSON):\n\`\`\`json\n${JSON.stringify(report, null, 2)}\n\`\`\`\n\nYÊU CẦU CỦA LUẬT SƯ:\n"${userRequest}"\n\nHãy soạn thảo văn bản hoàn chỉnh.${optionsPrompt}`;
+        const prompt = `VĂN BẢN GỐC:\n---\n${originalAnswer}\n---\n\nYÊU CẦU: Hãy viết lại văn bản trên với văn phong ${modeDescriptions[mode]}.`;
         
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt,
-            config: { systemInstruction: DOCUMENT_GENERATION_SYSTEM_INSTRUCTION, temperature: 0.4 }
+            config: {
+                systemInstruction: QUICK_ANSWER_REFINE_SYSTEM_INSTRUCTION,
+                temperature: 0.6,
+            }
         });
+
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể tinh chỉnh câu trả lời.");
+        }
+        return response.text.trim();
+
+    } catch (error) {
+        throw handleGeminiError(error, `tinh chỉnh câu trả lời nhanh`);
+    }
+};
+
+export const continueConsultingChat = async (
+    report: ConsultingReport,
+    chatHistory: ChatMessage[],
+    newMessage: string,
+    newFiles: UploadedFile[]
+): Promise<{ chatResponse: string; updatedReport: ConsultingReport | null }> => {
+    try {
+        const { fileContentParts, multimodalParts } = await getFileContentParts(newFiles);
+        const newFilesContent = fileContentParts.length > 0 ? `\n\nNỘI DUNG TỆP MỚI:\n---\n${fileContentParts.join('\n\n')}\n---` : '';
+
+        const conversationHistoryPrompt = chatHistory
+            .map(msg => `${msg.role === 'user' ? 'Luật sư' : 'Trợ lý AI'}: ${msg.content}`)
+            .join('\n');
+
+        const prompt = `
+        BÁO CÁO TƯ VẤN GỐC (JSON):
+        \`\`\`json
+        ${JSON.stringify(report, null, 2)}
+        \`\`\`
+
+        LỊCH SỬ TRAO ĐỔI:
+        ---
+        ${conversationHistoryPrompt}
+        ---
+
+        LUẬT SƯ (YÊU CẦU MỚI):
+        ${newMessage}
+        ${newFilesContent}
+        `;
+
+        const allParts: Part[] = [...multimodalParts, { text: prompt }];
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: allParts },
+            config: {
+                systemInstruction: CONSULTING_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+                temperature: 0.5,
+            }
+        });
+
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể tiếp tục cuộc trò chuyện.");
+        }
+
+        const responseText = response.text.trim();
+        const parts = responseText.split('---UPDATES---');
+        
+        if (parts.length < 2) {
+            return { chatResponse: responseText, updatedReport: null };
+        }
+
+        const chatResponse = parts[0].trim();
+        let updatedReport: ConsultingReport | null = null;
+        try {
+            const jsonText = parts[1].trim().replace(/^```json\s*|```$/g, '');
+            if (jsonText && jsonText !== 'null') {
+                updatedReport = JSON.parse(jsonText);
+            }
+        } catch (e) {
+            console.error("Failed to parse updated report JSON from AI response:", e);
+        }
+
+        return { chatResponse, updatedReport };
+
+    } catch (error) {
+        throw handleGeminiError(error, `trao đổi về nghiệp vụ tư vấn`);
+    }
+};
+
+export const continueLitigationChat = async (
+    report: AnalysisReport,
+    chatHistory: ChatMessage[],
+    newMessage: string,
+    newFiles: UploadedFile[]
+): Promise<{ chatResponse: string; updatedReport: AnalysisReport | null }> => {
+    try {
+        const { fileContentParts, multimodalParts } = await getFileContentParts(newFiles);
+        const newFilesContent = fileContentParts.length > 0 ? `\n\nNỘI DUNG TỆP MỚI:\n---\n${fileContentParts.join('\n\n')}\n---` : '';
+
+        const conversationHistoryPrompt = chatHistory
+            .map(msg => `${msg.role === 'user' ? 'Luật sư' : 'Trợ lý AI'}: ${msg.content}`)
+            .join('\n');
+
+        const { globalChatHistory, ...reportContext } = report; // Exclude chat history from context
+
+        const prompt = `
+        BÁO CÁO PHÂN TÍCH VỤ VIỆC GỐC (JSON):
+        \`\`\`json
+        ${JSON.stringify(reportContext, null, 2)}
+        \`\`\`
+
+        LỊCH SỬ TRAO ĐỔI:
+        ---
+        ${conversationHistoryPrompt}
+        ---
+
+        LUẬT SƯ (YÊU CẦU MỚI):
+        ${newMessage}
+        ${newFilesContent}
+        `;
+
+        const allParts: Part[] = [...multimodalParts, { text: prompt }];
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: allParts },
+            config: {
+                systemInstruction: LITIGATION_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+                temperature: 0.5,
+            }
+        });
+
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể tiếp tục cuộc trò chuyện.");
+        }
+
+        const responseText = response.text.trim();
+        const parts = responseText.split('---UPDATES---');
+        
+        if (parts.length < 2) {
+            return { chatResponse: responseText, updatedReport: null };
+        }
+
+        const chatResponse = parts[0].trim();
+        let updatedReport: AnalysisReport | null = null;
+        try {
+            const jsonText = parts[1].trim().replace(/^```json\s*|```$/g, '');
+            if (jsonText && jsonText !== 'null') {
+                updatedReport = JSON.parse(jsonText);
+            }
+        } catch (e) {
+            console.error("Failed to parse updated report JSON from AI response:", e);
+        }
+
+        return { chatResponse, updatedReport };
+
+    } catch (error) {
+        throw handleGeminiError(error, `trao đổi về vụ việc tranh tụng`);
+    }
+};
+
+
+
+export const generateContextualDocument = async (
+  report: AnalysisReport,
+  userRequest: string,
+  options: {
+    detail: ParagraphGenerationOptions['detail'];
+    draftingMode: DraftingMode;
+  }
+): Promise<string> => {
+    try {
+        const { detail, draftingMode } = options;
+        
+        const modeLabel = DRAFTING_MODE_LABELS[draftingMode] || 'Trung lập';
+        const detailLabel = detail === 'detailed' ? 'Chi tiết' : 'Ngắn gọn';
+        
+        const prompt = `
+        DỮ LIỆU VỤ VIỆC (JSON):
+        \`\`\`json
+        ${JSON.stringify(report, null, 2)}
+        \`\`\`
+        
+        YÊU CẦU CỦA LUẬT SƯ:
+        "${userRequest}"
+        
+        HÃY SOẠN THẢO VĂN BẢN VỚI CÁC TIÊU CHÍ SAU:
+        - Lập trường Chiến lược: ${modeLabel}
+        - Mức độ chi tiết: ${detailLabel}
+        
+        Soạn thảo văn bản hoàn chỉnh.`;
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: { systemInstruction: DOCUMENT_GENERATION_SYSTEM_INSTRUCTION, temperature: 0.5 }
+        });
+        
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không tạo được nội dung văn bản.");
+        }
         return response.text.trim();
     } catch (error) {
         throw handleGeminiError(error, 'soạn thảo văn bản');
@@ -455,28 +834,41 @@ export const generateDocumentFromTemplate = async (docType: DocType, formData: F
             contents: prompt,
             config: { systemInstruction, temperature: 0.4 }
         });
+        
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không tạo được nội dung văn bản từ mẫu.");
+        }
         return response.text.trim();
     } catch (error) {
         throw handleGeminiError(error, 'tạo văn bản từ mẫu');
     }
 };
 
-export const generateParagraph = async (userRequest: string, options: ParagraphGenerationOptions): Promise<string> => {
+export const generateParagraph = async (userRequest: string, options: ParagraphGenerationOptions, withAnnotations: boolean = false): Promise<string> => {
   try {
-    const systemInstruction = `Bạn là trợ lý luật sư AI chuyên soạn thảo đoạn văn pháp lý theo yêu cầu và các tùy chọn về văn phong.`;
+    let systemInstruction = `Bạn là trợ lý luật sư AI chuyên soạn thảo đoạn văn pháp lý theo yêu cầu và các tùy chọn về văn phong.`;
+    
+    if (withAnnotations) {
+        systemInstruction += `\n\n${TACTICAL_DRAFTING_INSTRUCTION}`;
+    }
+
     const prompt = `YÊU CẦU: "${userRequest}"\n\nHÃY SOẠN THẢO MỘT ĐOẠN VĂN THEO CÁC TIÊU CHÍ:\n- Giọng văn: ${options.tone}\n- Mức độ thuật ngữ: ${options.terminology}\n- Mức độ chi tiết: ${options.detail}\n- Định dạng: ${options.outputFormat}`;
+    
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
       config: { systemInstruction, temperature: 0.5 }
     });
+
+    if (!response || typeof response.text !== 'string') {
+        throw new Error("AI không tạo được nội dung đoạn văn.");
+    }
     return response.text.trim();
   } catch (error) {
     throw handleGeminiError(error, 'soạn thảo đoạn văn');
   }
 };
 
-// FIX: Add missing refineText function
 export const refineText = async (text: string, mode: 'concise' | 'detailed'): Promise<string> => {
   try {
     const systemInstruction = `Bạn là một biên tập viên AI chuyên nghiệp. Nhiệm vụ của bạn là chỉnh sửa lại văn bản được cung cấp theo một yêu cầu cụ thể (làm cho nó súc tích hơn hoặc chi tiết hơn).`;
@@ -487,6 +879,10 @@ export const refineText = async (text: string, mode: 'concise' | 'detailed'): Pr
         contents: prompt,
         config: { systemInstruction, temperature: 0.5 }
     });
+    
+    if (!response || typeof response.text !== 'string') {
+        throw new Error("AI không thể hoàn thiện văn bản.");
+    }
     return response.text.trim();
   } catch (error) {
     throw handleGeminiError(error, `hoàn thiện văn bản (chế độ: ${mode})`);
@@ -502,6 +898,10 @@ export const generateFieldContent = async (formContext: { [key: string]: string 
             contents: prompt,
             config: { systemInstruction, temperature: 0.7 }
         });
+        
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể tạo nội dung cho trường này.");
+        }
         return response.text.trim();
     } catch (error) {
         throw handleGeminiError(error, 'tạo nội dung cho trường này');
@@ -539,6 +939,10 @@ export const extractInfoFromFile = async (file: UploadedFile, docType: DocType):
             contents: { parts: [contentPart, { text: prompt }] },
             config: { systemInstruction, responseMimeType: "application/json", responseSchema: schema, temperature: 0.0 }
         });
+
+        if (!response || typeof response.text !== 'string' || !response.text.trim()) {
+            throw new Error("AI không thể trích xuất thông tin từ tệp.");
+        }
         return JSON.parse(response.text.trim().replace(/^```json\s*|```$/g, ''));
     } catch (error) {
         throw handleGeminiError(error, `trích xuất thông tin từ tệp`);
@@ -568,7 +972,7 @@ LƯU Ý: Suy luận thông tin từ toàn bộ báo cáo (bao gồm các mô t�
 *   **Tóm tắt diễn biến chính:** [Tóm tắt ngắn gọn các sự kiện chính từ toàn bộ báo cáo]
 *   **Tình trạng tố tụng hiện tại:** [Điền nội dung từ trường 'litigationStage']
 
-### LẬP TRƯỜNG & YÊU CẦU CỦA CÁC BÊN (TÓM TẮT) ###
+### LẬP TRƯỜNG & YÊU CỦA CÁC BÊN (TÓM TẮT) ###
 *   **Phía Nguyên đơn/Bên khởi kiện:** [Dựa vào báo cáo, tóm tắt lập trường và yêu cầu của họ]
 *   **Phía Bị đơn/Bên bị kiện:** [Dựa vào báo cáo, tóm tắt lập trường và luận điểm phản biện của họ]
 
@@ -588,6 +992,10 @@ LƯU Ý: Suy luận thông tin từ toàn bộ báo cáo (bao gồm các mô t�
             contents: prompt,
             config: { systemInstruction, temperature: 0.3 }
         });
+        
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể tạo tóm tắt báo cáo.");
+        }
         return response.text.trim();
     } catch (error) {
         throw handleGeminiError(error, 'tạo tóm tắt báo cáo');
@@ -603,31 +1011,40 @@ export const explainLaw = async (lawText: string): Promise<string> => {
             contents: prompt,
             config: { systemInstruction, temperature: 0.2 }
         });
+        
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể giải thích điều luật.");
+        }
         return response.text.trim();
     } catch (error) {
         throw handleGeminiError(error, `giải thích điều luật "${lawText}"`);
     }
 };
 
-export const continueResolutionChat = async (
+export const continueContextualChat = async (
   report: AnalysisReport,
   chatHistory: ChatMessage[],
-  newMessage: string
+  newMessage: string,
+  contextTitle: string
 ): Promise<string> => {
   try {
-    const { resolutionPlanChat, ...reportContext } = report; // Don't include old chat in the context JSON
+    // Exclude chat histories from the context to prevent redundancy and save tokens
+    const { prospectsChat, gapAnalysisChat, strategyChat, resolutionPlanChat, intelligentSearchChat, applicableLawsChat, contingencyPlanChat, ...reportContext } = report;
 
     const conversationHistoryPrompt = chatHistory
       .map(msg => `${msg.role === 'user' ? 'Luật sư' : 'Trợ lý AI'}: ${msg.content}`)
       .join('\n');
 
     const prompt = `
-BỐI CẢNH VỤ VIỆC (JSON):
+BÁO CÁO PHÂN TÍCH VỤ VIỆC (JSON):
 \`\`\`json
 ${JSON.stringify(reportContext, null, 2)}
 \`\`\`
 
-LỊCH SỬ TRAO ĐỔI VỀ PHƯƠNG ÁN:
+BỐI CẢNH THẢO LUẬN HIỆN TẠI:
+Bạn đang trao đổi trong mục: "${contextTitle}"
+
+LỊCH SỬ TRAO ĐỔI:
 ---
 ${conversationHistoryPrompt}
 ---
@@ -642,13 +1059,300 @@ TRỢ LÝ AI:
         model: "gemini-2.5-flash",
         contents: prompt,
         config: {
-            systemInstruction: RESOLUTION_CHAT_SYSTEM_INSTRUCTION,
+            systemInstruction: CONTEXTUAL_CHAT_SYSTEM_INSTRUCTION,
+            temperature: 0.7,
+        }
+    });
+    
+    if (!response || typeof response.text !== 'string') {
+        throw new Error("AI không thể tiếp tục cuộc trò chuyện.");
+    }
+    return response.text.trim();
+  } catch (error) {
+    throw handleGeminiError(error, `trao đổi về "${contextTitle}"`);
+  }
+};
+
+export const intelligentSearchQuery = async (
+  report: AnalysisReport,
+  files: UploadedFile[],
+  chatHistory: ChatMessage[],
+  newUserQuery: string
+): Promise<string> => {
+    try {
+        const { fileContentParts, multimodalParts } = await getFileContentParts(files);
+        const filesContent = fileContentParts.length > 0 ? fileContentParts.join('\n\n') : 'Không có tệp nào được tải lên.';
+
+        // Exclude chat histories from the context to prevent redundancy
+        const { prospectsChat, gapAnalysisChat, strategyChat, resolutionPlanChat, intelligentSearchChat, ...reportContext } = report;
+
+        const conversationHistoryPrompt = chatHistory
+          .map(msg => `${msg.role === 'user' ? 'Luật sư' : 'Trợ lý AI'}: ${msg.content}`)
+          .join('\n');
+
+        const prompt = `**BỐI CẢNH VỤ VIỆC**
+
+1.  **BÁO CÁO PHÂN TÍCH (JSON):**
+    \`\`\`json
+    ${JSON.stringify(reportContext, null, 2)}
+    \`\`\`
+
+2.  **TÓM TẮT NỘI DUNG TÀI LIỆU:**
+    ${filesContent}
+
+**LỊCH SỬ TRAO ĐỔI:**
+---
+${conversationHistoryPrompt}
+---
+
+**CÂU HỎI MỚI CỦA LUẬT SƯ:**
+${newUserQuery}
+`;
+
+        const allParts: Part[] = [...multimodalParts, { text: prompt }];
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: allParts },
+            config: {
+                systemInstruction: INTELLIGENT_SEARCH_SYSTEM_INSTRUCTION,
+                temperature: 0.3,
+            }
+        });
+
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể trả lời câu hỏi của bạn.");
+        }
+        return response.text.trim();
+    } catch (error) {
+        throw handleGeminiError(error, 'hỏi đáp về hồ sơ');
+    }
+};
+
+export const generateArgumentText = async (
+  selectedNodes: ArgumentNode[]
+): Promise<string> => {
+    try {
+        const context = selectedNodes.map(node => ({
+            type: node.type,
+            label: node.label,
+            content: node.content
+        }));
+
+        const prompt = `DỰA TRÊN CÁC YẾU TỐ SAU ĐÂY:\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\`\n\nHãy soạn thảo một đoạn văn luận cứ pháp lý hoàn chỉnh.`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                systemInstruction: ARGUMENT_GENERATION_SYSTEM_INSTRUCTION,
+                temperature: 0.6
+            }
+        });
+        
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể tạo luận cứ.");
+        }
+        return response.text.trim();
+    } catch (error) {
+        throw handleGeminiError(error, 'soạn thảo luận cứ');
+    }
+};
+
+export const chatAboutArgumentNode = async (
+  node: ArgumentNode,
+  chatHistory: ChatMessage[],
+  newMessage: string
+): Promise<string> => {
+  try {
+    const conversationHistoryPrompt = chatHistory
+      .map(msg => `${msg.role === 'user' ? 'Luật sư' : 'Trợ lý AI'}: ${msg.content}`)
+      .join('\n');
+
+    const prompt = `
+BỐI CẢNH (KHỐI THÔNG TIN TỪ BẢN ĐỒ LẬP LUẬN):
+- Loại: ${nodeTypeMeta[node.type]?.label || 'Tùy chỉnh'}
+- Nhãn: ${node.label}
+- Nội dung: "${node.content}"
+
+LỊCH SỬ TRAO ĐỔI VỀ KHỐI NÀY:
+---
+${conversationHistoryPrompt}
+---
+
+LUẬT SƯ (YÊU CẦU MỚI):
+${newMessage}
+
+TRỢ LÝ AI:
+`;
+    const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+            systemInstruction: ARGUMENT_NODE_CHAT_SYSTEM_INSTRUCTION,
             temperature: 0.7,
         }
     });
 
+    if (!response || typeof response.text !== 'string') {
+        throw new Error("AI không thể tiếp tục cuộc trò chuyện.");
+    }
     return response.text.trim();
   } catch (error) {
-    throw handleGeminiError(error, 'trao đổi về phương án giải quyết');
+    throw handleGeminiError(error, `trao đổi về luận cứ "${node.label}"`);
+  }
+};
+
+export const analyzeOpponentArguments = async (
+    report: AnalysisReport,
+    files: UploadedFile[],
+    opponentArgumentsText: string
+): Promise<OpponentArgument[]> => {
+    try {
+        const { fileContentParts, multimodalParts } = await getFileContentParts(files);
+        const filesContent = fileContentParts.join('\n\n');
+        // Exclude potentially large/recursive fields from the main report context to save tokens
+        const { argumentGraph, opponentAnalysis, ...reportContext } = report;
+
+        const promptText = `
+**BỐI CẢNH VỤ VIỆC (HỒ SƠ CỦA KHÁCH HÀNG):**
+1.  **Báo cáo Phân tích (JSON):**
+    \`\`\`json
+    ${JSON.stringify(reportContext, null, 2)}
+    \`\`\`
+2.  **Tóm tắt Tài liệu Gốc:**
+    ${filesContent}
+
+**LẬP LUẬN CỦA ĐỐI PHƯƠNG CẦN PHÂN TÍCH:**
+---
+${opponentArgumentsText}
+---
+
+**YÊU CẦU:**
+Dựa vào toàn bộ bối cảnh vụ việc của khách hàng, hãy phân tích các lập luận của đối phương và trả về kết quả dưới dạng một mảng JSON.
+`;
+        const allParts: Part[] = [...multimodalParts, { text: promptText }];
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: allParts },
+            config: {
+                systemInstruction: OPPONENT_ANALYSIS_SYSTEM_INSTRUCTION,
+                responseMimeType: "application/json",
+                responseSchema: OPPONENT_ANALYSIS_SCHEMA,
+                temperature: 0.4,
+            }
+        });
+        
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không trả về kết quả phân tích lập luận đối phương.");
+        }
+        const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
+        return JSON.parse(jsonText);
+    } catch (error) {
+        throw handleGeminiError(error, 'phân tích lập luận của đối phương');
+    }
+};
+
+export const predictOpponentArguments = async (
+    report: AnalysisReport,
+    files: UploadedFile[]
+): Promise<string[]> => {
+    try {
+        const { fileContentParts, multimodalParts } = await getFileContentParts(files);
+        const filesContent = fileContentParts.join('\n\n');
+        const { argumentGraph, opponentAnalysis, ...reportContext } = report;
+
+        const promptText = `
+**HỒ SƠ VỤ VIỆC CỦA PHÍA BÊN KIA:**
+1.  **Báo cáo Phân tích (JSON):**
+    \`\`\`json
+    ${JSON.stringify(reportContext, null, 2)}
+    \`\`\`
+2.  **Tóm tắt Tài liệu Gốc:**
+    ${filesContent}
+
+**YÊU CẦU:**
+Với vai trò là luật sư của phía đối lập, hãy nghiên cứu hồ sơ trên và đưa ra những lập luận mạnh mẽ, khả thi nhất để chống lại họ.`;
+        
+        const allParts: Part[] = [...multimodalParts, { text: promptText }];
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: { parts: allParts },
+            config: {
+                systemInstruction: PREDICT_OPPONENT_ARGS_SYSTEM_INSTRUCTION,
+                responseMimeType: "application/json",
+                responseSchema: PREDICT_OPPONENT_ARGS_SCHEMA,
+                temperature: 0.7,
+            }
+        });
+        
+        if (!response || typeof response.text !== 'string') {
+            throw new Error("AI không thể giả định lập luận của đối phương.");
+        }
+        const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
+        const result = JSON.parse(jsonText);
+        return result.predictedArguments || [];
+    } catch (error) {
+        throw handleGeminiError(error, 'giả định lập luận của đối phương');
+    }
+};
+
+export const runDevilAdvocateAnalysis = async (
+  report: AnalysisReport
+): Promise<{ weakness: string; counterStrategy: string }[]> => {
+  try {
+    // Prepare the context for the "Devil's Advocate"
+    const context = `
+    **CASE CONTEXT:**
+    - Relationship: ${report.legalRelationship}
+    - Stage: ${report.litigationStage}
+    
+    **PROPOSED STRATEGY TO ATTACK:**
+    \`\`\`json
+    ${JSON.stringify(report.proposedStrategy, null, 2)}
+    \`\`\`
+    
+    **KNOWN WEAKNESSES (from internal file):**
+    ${report.caseProspects?.weaknesses.join('\n')}
+    `;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: context,
+      config: {
+        systemInstruction: DEVIL_ADVOCATE_SYSTEM_INSTRUCTION,
+        responseMimeType: "application/json",
+        temperature: 0.7, // Higher temperature for creativity/aggressiveness
+        responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+                critiquePoints: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            weakness: { type: Type.STRING, description: "The specific flaw or risk identified in the strategy." },
+                            counterStrategy: { type: Type.STRING, description: "How the opponent will exploit this flaw." }
+                        },
+                        required: ["weakness", "counterStrategy"]
+                    }
+                }
+            },
+            required: ["critiquePoints"]
+        }
+      },
+    });
+
+    if (!response || typeof response.text !== 'string') {
+        throw new Error("AI failed to generate a critique.");
+    }
+    const jsonText = response.text.trim().replace(/^```json\s*|```$/g, '');
+    const result = JSON.parse(jsonText);
+    return result.critiquePoints || [];
+
+  } catch (error) {
+    throw handleGeminiError(error, 'chạy giả lập đối thủ');
   }
 };

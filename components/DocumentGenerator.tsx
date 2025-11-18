@@ -1,40 +1,41 @@
-
 import React, { useState, useCallback } from 'react';
 import { generateDocumentFromTemplate, extractInfoFromFile, generateFieldContent } from '../services/geminiService.ts';
 import { Loader } from './Loader.tsx';
 import { MagicIcon } from './icons/MagicIcon.tsx';
 import { FileImportIcon } from './icons/FileImportIcon.tsx';
 import type { DocType, FormData, UploadedFile } from '../types.ts';
-import { DOC_TYPE_FIELDS } from '../constants.ts';
+import { DOC_TYPE_FIELDS, FIELD_LABELS, REGIONAL_COURTS } from '../constants.ts';
 
 const DOC_TYPE_LABELS: Record<DocType, string> = {
     '': '--- Chọn loại văn bản ---',
     legalServiceContract: 'Hợp đồng Dịch vụ Pháp lý',
     demandLetter: 'Thư yêu cầu',
     powerOfAttorney: 'Giấy ủy quyền',
-    lawsuit: 'Đơn khởi kiện',
-    statementOfOpinion: 'Bản trình bày ý kiến',
-    divorcePetition: 'Đơn xin ly hôn',
-    enforcementPetition: 'Đơn yêu cầu thi hành án',
-    will: 'Di chúc',
-    // Add other labels as needed
     meetingMinutes: 'Biên bản làm việc',
+    lawsuit: 'Đơn khởi kiện',
     evidenceList: 'Bản kê khai chứng cứ',
     civilMatterPetition: 'Đơn yêu cầu giải quyết việc dân sự',
     statement: 'Bản tự khai',
     appeal: 'Đơn kháng cáo',
     civilContract: 'Hợp đồng Dân sự',
     businessRegistration: 'Hồ sơ Đăng ký Kinh doanh',
+    divorcePetition: 'Đơn xin ly hôn',
+    will: 'Di chúc',
+    enforcementPetition: 'Đơn yêu cầu thi hành án',
     complaint: 'Đơn khiếu nại',
     reviewPetition: 'Đơn đề nghị Giám đốc thẩm/Tái thẩm',
     inheritanceWaiver: 'Văn bản từ chối nhận di sản',
+    statementOfOpinion: 'Bản trình bày ý kiến',
+    defenseStatement: 'Bản bào chữa cho Bị đơn',
+    enterpriseRegistration: 'Hồ sơ Đăng ký Doanh nghiệp',
+    householdRegistration: 'Hồ sơ Đăng ký Hộ kinh doanh',
 };
 
 const FieldLabel: React.FC<{ fieldName: string }> = ({ fieldName }) => {
-  const formatted = fieldName
-    .replace(/([A-Z])/g, ' $1') // Add space before uppercase letters
-    .replace(/^./, (str) => str.toUpperCase()); // Capitalize first letter
-  return <>{formatted}</>;
+    const formatted = fieldName
+        .replace(/([A-Z])/g, ' $1') // Add space before uppercase letters
+        .replace(/^./, (str) => str.toUpperCase()); // Capitalize first letter
+    return <>{FIELD_LABELS[fieldName] || formatted}</>;
 };
 
 export const DocumentGenerator: React.FC = () => {
@@ -148,7 +149,28 @@ export const DocumentGenerator: React.FC = () => {
                             </div>
                             <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 -mr-2">
                                {currentFields.map(field => {
-                                   const isTextArea = field.toLowerCase().includes('content') || field.toLowerCase().includes('summary') || field.toLowerCase().includes('request') || field.toLowerCase().includes('actions') || field.toLowerCase().includes('analysis') || field.toLowerCase().includes('basis');
+                                   const isTextArea = field.toLowerCase().includes('content') || field.toLowerCase().includes('summary') || field.toLowerCase().includes('request') || field.toLowerCase().includes('actions') || field.toLowerCase().includes('analysis') || field.toLowerCase().includes('basis') || field.toLowerCase().includes('arguments') || field.toLowerCase().includes('evidence') || field.toLowerCase().includes('circumstances');
+                                   
+                                   if (field === 'courtName') {
+                                    return (
+                                        <div key={field}>
+                                            <label htmlFor={field} className="block text-sm font-semibold text-slate-700 mb-1"><FieldLabel fieldName={field} /></label>
+                                            <input
+                                                type="text"
+                                                id={field}
+                                                name={field}
+                                                value={formData[field] || ''}
+                                                onChange={handleInputChange}
+                                                className="w-full p-2 border border-slate-300 rounded-md bg-white"
+                                                list="regional-courts-list"
+                                            />
+                                            <datalist id="regional-courts-list">
+                                                {REGIONAL_COURTS.map(court => <option key={court} value={court} />)}
+                                            </datalist>
+                                        </div>
+                                    )
+                                   }
+
                                    return (
                                        <div key={field}>
                                            <label htmlFor={field} className="block text-sm font-semibold text-slate-700 mb-1"><FieldLabel fieldName={field} /></label>

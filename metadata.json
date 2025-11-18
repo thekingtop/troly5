@@ -1,5 +1,7 @@
 {
-  "name": "Trợ lý luật 20-10 ver 6",
-  "description": "nâng cấp tóm tắt, phân tích tự động giai đoạn, nguyên đơn, bị đơn, phương án sau thắng kiện/thua kiện",
-  "requestFramePermissions": []
+  "name": "Trợ lý luật 3-11 ver 26",
+  "description": "cập nhật phân tích chuyên sâu đất đai\ncập nhật cách trả lời ngắn gọn đi sâu vấn đề tại phân tích nhanh\nNâng cấp khả năng tư duy",
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
