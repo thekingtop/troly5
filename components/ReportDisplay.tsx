@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { AnalysisReport, ApplicableLaw, LawArticle, UploadedFile, LitigationType, LegalLoophole, ChatMessage, CaseTimelineEvent, OpponentArgument, SupportingEvidence, CrossExamQuestion } from '../types.ts';
 import { MagicIcon } from './icons/MagicIcon.tsx';
-import { explainLaw, continueContextualChat, analyzeOpponentArguments, predictOpponentArguments, runDevilAdvocateAnalysis } from '../services/geminiService.ts';
+import { explainLaw, continueContextualChat, analyzeOpponentArguments, predictOpponentArguments, runDevilAdvocateAnalysis, generateStrategicPlan } from '../services/geminiService.ts';
 import { Loader } from './Loader.tsx';
 import { SearchIcon } from './icons/SearchIcon.tsx';
 import { getStageLabel } from '../constants.ts';
@@ -15,8 +15,7 @@ import { DownloadIcon } from './icons/DownloadIcon.tsx';
 import { RefreshIcon } from './icons/RefreshIcon.tsx';
 import { EditIcon } from './icons/EditIcon.tsx';
 import { LandInfoDisplay } from './LandInfoDisplay.tsx';
-import { AnalysisIcon } from './icons/AnalysisIcon.tsx'; 
-import { CunningLawyerText } from './CunningLawyerText.tsx'; // Import shared component
+import { AnalysisIcon } from './icons/AnalysisIcon.tsx'; // Ensure this import exists
 
 // --- Internal Components and Icons ---
 declare var html2canvas: any;
@@ -81,6 +80,35 @@ const TargetIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Z" />
     </svg>
 );
+
+const CunningLawyerText: React.FC<{ text: string | string[] | undefined }> = ({ text }) => {
+    if (!text) return null;
+    const content = Array.isArray(text) ? text.join('\n') : text;
+    const parts = content.split(/(<cg>.*?<\/cg>)/g);
+    return (
+        <>
+            {parts.map((part, index) => {
+                if (part.startsWith('<cg>')) {
+                    const tip = part.replace(/<\/?cg>/g, '');
+                    return (
+                        <div key={index} className="my-2 p-3 bg-amber-50 border-l-4 border-amber-300 rounded-r-md">
+                            <div className="flex items-start gap-2">
+                                <CunningLawyerIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                <div className="text-sm text-amber-900">
+                                    <span className="font-bold">Mẹo chiến thuật:</span>
+                                    <span className="ml-1">{tip}</span>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+                // Render text with newlines
+                return <React.Fragment key={index}>{part.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}</React.Fragment>;
+            })}
+        </>
+    );
+};
+
 
 const HighlightedText: React.FC<{ text: string | undefined; term: string }> = React.memo(({ text, term }) => {
     if (!term.trim() || !text) { return <>{text}</>; }
@@ -147,9 +175,7 @@ const ChatWindow: React.FC<{
             {chatHistory.map((msg, index) => (
                 <div key={index} className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                     {msg.role === 'model' && <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0"><MagicIcon className="w-4 h-4 text-white"/></div>}
-                    <div className={`max-w-[80%] p-2 rounded-lg text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-100'}`}>
-                        <CunningLawyerText text={msg.content} />
-                    </div>
+                    <div className={`max-w-[80%] p-2 rounded-lg text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-100'}`}><p className="whitespace-pre-wrap">{msg.content}</p></div>
                 </div>
             ))}
             {isLoading && <div className="flex gap-2.5"><div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0"><MagicIcon className="w-4 h-4 text-white"/></div><div className="p-2 rounded-lg bg-slate-100"><Loader /></div></div>}
@@ -247,9 +273,9 @@ const DevilAdvocateSection: React.FC<{ report: AnalysisReport }> = ({ report }) 
                     {critique?.map((point, i) => (
                         <div key={i} className="p-3 bg-gray-800 rounded border-l-2 border-red-500">
                             <p className="text-sm font-bold text-red-400 mb-1">Điểm yếu bị tấn công:</p>
-                            <p className="text-sm mb-2"><CunningLawyerText text={point.weakness} /></p>
+                            <p className="text-sm mb-2">{point.weakness}</p>
                             <p className="text-sm font-bold text-amber-400 mb-1">Chiến thuật của đối phương:</p>
-                            <p className="text-sm italic text-gray-300">"<CunningLawyerText text={point.counterStrategy} />"</p>
+                            <p className="text-sm italic text-gray-300">"{point.counterStrategy}"</p>
                         </div>
                     ))}
                     <button onClick={() => setShow(false)} className="text-xs text-gray-500 underline hover:text-gray-300 mt-2">Ẩn phản biện</button>
@@ -259,16 +285,51 @@ const DevilAdvocateSection: React.FC<{ report: AnalysisReport }> = ({ report }) 
     );
 };
 
-// --- WAR ROOM COMPONENT ---
-const WarRoomSection: React.FC<{ report: AnalysisReport }> = ({ report }) => {
+// --- WAR ROOM COMPONENT (NEW - LAZY LOADED) ---
+const WarRoomSection: React.FC<{ report: AnalysisReport, onUpdateReport: (report: AnalysisReport) => void, files: UploadedFile[] }> = ({ report, onUpdateReport, files }) => {
     const { winProbabilityAnalysis, proposedStrategy } = report;
     const layeredStrategy = proposedStrategy?.layeredStrategy;
     const crossExamPlan = proposedStrategy?.crossExaminationPlan;
+    const [isLoadingStrategy, setIsLoadingStrategy] = useState(false);
 
-    if (!winProbabilityAnalysis && !layeredStrategy && !crossExamPlan) return null;
+    const hasStrategyData = winProbabilityAnalysis && layeredStrategy && crossExamPlan;
+
+    const handleGenerateStrategy = async () => {
+        setIsLoadingStrategy(true);
+        try {
+            const updatedReport = await generateStrategicPlan(report, files);
+            onUpdateReport(updatedReport);
+        } catch (error) {
+            alert("Không thể tạo chiến lược lúc này. Vui lòng thử lại.");
+        } finally {
+            setIsLoadingStrategy(false);
+        }
+    };
+
+    if (!hasStrategyData) {
+        return (
+            <div className="bg-slate-900 p-6 rounded-lg border border-slate-700 text-slate-200 mb-6 soft-shadow text-center">
+                <div className="flex flex-col items-center gap-3">
+                    <TargetIcon className="w-10 h-10 text-red-500 mb-2" />
+                    <h3 className="text-xl font-bold text-white">PHÒNG CHIẾN THUẬT (WAR ROOM)</h3>
+                    <p className="text-slate-400 text-sm max-w-md">
+                        Khu vực này dành cho các phân tích chiến lược chuyên sâu: Xác suất thắng kiện, Chiến lược Ẩn-Hiện, và Kế hoạch Thẩm vấn chéo.
+                    </p>
+                    <button 
+                        onClick={handleGenerateStrategy} 
+                        disabled={isLoadingStrategy}
+                        className="mt-4 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all shadow-lg shadow-red-900/50 flex items-center gap-2"
+                    >
+                        {isLoadingStrategy ? <Loader /> : <BrainIcon className="w-5 h-5" />}
+                        {isLoadingStrategy ? 'Đang lập chiến lược...' : 'Kích hoạt Phòng Chiến thuật'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 text-slate-200 mb-6 soft-shadow">
+        <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 text-slate-200 mb-6 soft-shadow animate-fade-in">
             <div className="flex items-center gap-2 mb-4 border-b border-slate-700 pb-2">
                 <TargetIcon className="w-6 h-6 text-red-500" />
                 <h3 className="text-lg font-bold text-white">PHÒNG CHIẾN THUẬT (WAR ROOM)</h3>
@@ -283,7 +344,7 @@ const WarRoomSection: React.FC<{ report: AnalysisReport }> = ({ report }) => {
                             <div className={`text-4xl font-black ${winProbabilityAnalysis.score > 70 ? 'text-green-500' : (winProbabilityAnalysis.score > 40 ? 'text-yellow-500' : 'text-red-500')}`}>
                                 {winProbabilityAnalysis.score}%
                             </div>
-                            <div className="text-xs text-slate-400 italic"><CunningLawyerText text={winProbabilityAnalysis.rationale} /></div>
+                            <div className="text-xs text-slate-400 italic">{winProbabilityAnalysis.rationale}</div>
                         </div>
                         <div>
                             <span className="text-xs font-semibold text-slate-400">Biến số (Swing Factors):</span>
@@ -305,7 +366,7 @@ const WarRoomSection: React.FC<{ report: AnalysisReport }> = ({ report }) => {
                             </div>
                             <div className="border-l-2 border-red-500 pl-2 bg-red-900/20 p-1 rounded-r">
                                 <span className="text-xs font-bold text-red-400 block flex items-center gap-1"><CunningLawyerIcon className="w-3 h-3"/> BỀ CHÌM (Mục tiêu thực):</span>
-                                <ul className="list-disc list-inside text-red-200 italic">{layeredStrategy.deepStrategy.map((s, i) => <li key={i}><CunningLawyerText text={s} /></li>)}</ul>
+                                <ul className="list-disc list-inside text-red-200 italic">{layeredStrategy.deepStrategy.map((s, i) => <li key={i}>{s}</li>)}</ul>
                             </div>
                         </div>
                     </div>
@@ -337,7 +398,7 @@ const WarRoomSection: React.FC<{ report: AnalysisReport }> = ({ report }) => {
                                                 {q.type === 'Leading' ? 'Dẫn dắt' : (q.type === 'Locking' ? 'Khóa' : q.type)}
                                             </span>
                                         </td>
-                                        <td className="px-2 py-2 italic text-slate-200">"<CunningLawyerText text={q.question} />"</td>
+                                        <td className="px-2 py-2 italic text-slate-200">"{q.question}"</td>
                                         <td className="px-2 py-2 text-amber-200/80">{q.goal}</td>
                                     </tr>
                                 ))}
@@ -350,8 +411,7 @@ const WarRoomSection: React.FC<{ report: AnalysisReport }> = ({ report }) => {
     );
 };
 
-// ... (OpponentAnalysisSection and ReportDisplay remain similar, just updating imports)
-
+// ... (Keep OpponentAnalysisSection as is)
 interface OpponentAnalysisSectionProps {
   report: AnalysisReport | null;
   files: UploadedFile[];
@@ -360,7 +420,6 @@ interface OpponentAnalysisSectionProps {
 }
 
 const OpponentAnalysisSection: React.FC<OpponentAnalysisSectionProps> = ({ report, files, onUpdateReport, highlightTerm }) => {
-    // ... (Keep logic)
     const [opponentArgs, setOpponentArgs] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isPredicting, setIsPredicting] = useState(false);
@@ -372,7 +431,7 @@ const OpponentAnalysisSection: React.FC<OpponentAnalysisSectionProps> = ({ repor
         setError(null);
         try {
             const predictedArgs = await predictOpponentArguments(report, files);
-            setOpponentArgs(predictedArgs.join('\n\n- '));
+            setOpponentArgs(predictedArgs.join('\n\n- ')); // Format as a list
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Lỗi không xác định khi giả định');
         } finally {
@@ -397,7 +456,7 @@ const OpponentAnalysisSection: React.FC<OpponentAnalysisSectionProps> = ({ repor
 
     return (
         <ReportSection title="Phân tích Lập luận Đối phương">
-             <div className="space-y-4">
+            <div className="space-y-4">
                 <div>
                     <label htmlFor="opponentArgs" className="block text-sm font-semibold text-slate-700 mb-1.5">Nhập hoặc để AI giả định các luận điểm của đối phương:</label>
                     <textarea
@@ -463,7 +522,7 @@ interface ReportDisplayProps {
 }
 
 export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSummary, litigationType, onUpdateUserLaws, onUpdateReport, caseSummary, clientRequestSummary, onReanalyze, isReanalyzing, files }) => {
-    // ... (Keep all existing logic for state and handlers)
+    // ... (Keep state and handlers as is)
     const [highlightTerm, setHighlightTerm] = useState('');
     const [newLaw, setNewLaw] = useState({ documentName: '', articles: [{ articleNumber: '', summary: '' }] });
     const [isAddingLaw, setIsAddingLaw] = useState(false);
@@ -514,7 +573,7 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                 return { ...law, articles: filteredArticles };
             }
             return law;
-        }).filter(law => law.articles.length > 0); 
+        }).filter(law => law.articles.length > 0); // Remove law if no articles are left
         onUpdateUserLaws(updatedLaws);
     };
 
@@ -570,6 +629,7 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
         return null;
     }
     
+    // Check if the case is land-related to show specialized UI
     const isLandCase = !!report?.landInfo;
 
     return (
@@ -591,6 +651,7 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                 </button>
             </div>
             
+            {/* Analysis Mode Banner */}
             <div className={`flex items-center gap-2 mb-4 p-3 rounded-lg border border-slate-200 ${
                 litigationType === 'civil' ? 'bg-blue-50 border-blue-200 text-blue-800' :
                 (litigationType === 'criminal' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-orange-50 border-orange-200 text-orange-800')
@@ -599,7 +660,7 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                 <span className="font-bold">Chế độ Phân tích: {getAnalysisModeLabel(litigationType)}</span>
             </div>
             
-            {report && <WarRoomSection report={report} />}
+            {report && <WarRoomSection report={report} onUpdateReport={onUpdateReport} files={files} />}
 
             {report?.quickSummary && (
                 <ReportSection title="Tóm tắt Nhanh" headerAction={<button onClick={onClearSummary} className="px-3 py-1.5 text-xs bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200">Xóa</button>}>

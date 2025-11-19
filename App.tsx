@@ -30,7 +30,6 @@ import { UserGroupIcon } from './components/icons/UserGroupIcon.tsx';
 import { DocumentIcon } from './components/icons/DocumentIcon.tsx';
 import { ChatIcon } from './components/icons/ChatIcon.tsx';
 import { SendIcon } from './components/icons/SendIcon.tsx';
-import { CunningLawyerText } from './components/CunningLawyerText.tsx'; // Import the new component
 
 
 // Declare global variables from CDN scripts to satisfy TypeScript
@@ -232,11 +231,7 @@ const GlobalLitigationChat: React.FC<{
             </div>
             <div className="flex-grow p-4 overflow-y-auto space-y-4">
                 {(report.globalChatHistory || []).map((msg, index) => (
-                    <div key={index} className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                        <div className={`max-w-[85%] p-2.5 rounded-lg text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-100'}`}>
-                            <CunningLawyerText text={msg.content} />
-                        </div>
-                    </div>
+                    <div key={index} className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : ''}`}><div className={`max-w-[85%] p-2.5 rounded-lg text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-100'}`}><p className="whitespace-pre-wrap">{msg.content}</p></div></div>
                 ))}
                 {isLoading && <div className="flex gap-2.5"><div className="p-2.5 rounded-lg bg-slate-100"><Loader /></div></div>}
                 <div ref={chatEndRef} />
@@ -478,7 +473,7 @@ export default function App() {
         
         // Check if libraries are ready before starting processing that relies on them (e.g. docx parsing)
         if (files.length > 0 && !libsReady) {
-             setError(`Các thư viện xử lý tệp chưa sẵn sàng. Vui lòng tải lại trang.`);
+             setError(`Các thư viện xử lý tệp chưa sẵn sàng (Thiếu: ${missingLibs.join(', ')}). Vui lòng tải lại trang để thử lại.`);
              return;
         }
 
@@ -499,7 +494,7 @@ export default function App() {
             setIsPreprocessingFinished(true);
         }
 
-    }, [files, query, processFiles, libsReady]);
+    }, [files, query, processFiles, libsReady, missingLibs]);
 
     const handleUpdateClick = async () => {
         if (!report) return;
