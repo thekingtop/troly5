@@ -273,6 +273,8 @@ export default function App() {
     const [isPreprocessingFinished, setIsPreprocessingFinished] = useState(false);
     const [showWorkflowSelection, setShowWorkflowSelection] = useState(true);
     const [currentWorkflow, setCurrentWorkflow] = useState<AppWorkflowType>('litigation');
+    const [missingLibs, setMissingLibs] = useState<string[]>([]);
+
 
     const isMobile = useIsMobile();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -289,10 +291,23 @@ export default function App() {
         loadCases();
 
         const checkLibs = () => {
-            if (typeof docx !== 'undefined' && typeof XLSX !== 'undefined' && typeof jspdf !== 'undefined' && typeof html2canvas !== 'undefined' && typeof mammoth !== 'undefined') {
+            const missing = [];
+            if (typeof (window as any).docx === 'undefined') missing.push('docx');
+            if (typeof (window as any).XLSX === 'undefined') missing.push('XLSX');
+            // jspdf exports to window.jspdf, html2canvas to window.html2canvas, mammoth to window.mammoth
+            if (typeof (window as any).jspdf === 'undefined') missing.push('jspdf');
+            if (typeof (window as any).html2canvas === 'undefined') missing.push('html2canvas');
+            if (typeof (window as any).mammoth === 'undefined') missing.push('mammoth');
+            // Optional: Check for JSZip if it's critical (often bundled, but good to verify)
+            if (typeof (window as any).JSZip === 'undefined') missing.push('JSZip');
+
+
+            if (missing.length === 0) {
                 setLibsReady(true);
+                setMissingLibs([]);
             } else {
-                setTimeout(checkLibs, 500);
+                setMissingLibs(missing);
+                setTimeout(checkLibs, 1500); // Retry every 1.5 seconds
             }
         };
         checkLibs();
@@ -458,7 +473,7 @@ export default function App() {
         
         // Check if libraries are ready before starting processing that relies on them (e.g. docx parsing)
         if (files.length > 0 && !libsReady) {
-             setError("Các thư viện xử lý tệp chưa sẵn sàng. Vui lòng thử lại sau giây lát.");
+             setError(`Các thư viện xử lý tệp chưa sẵn sàng (Thiếu: ${missingLibs.join(', ')}). Vui lòng tải lại trang để thử lại.`);
              return;
         }
 
@@ -479,7 +494,7 @@ export default function App() {
             setIsPreprocessingFinished(true);
         }
 
-    }, [files, query, processFiles, libsReady]);
+    }, [files, query, processFiles, libsReady, missingLibs]);
 
     const handleUpdateClick = async () => {
         if (!report) return;
