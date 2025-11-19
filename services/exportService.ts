@@ -46,6 +46,7 @@ const processInlineContent = (node: Node, textRuns: any[], style: { bold?: boole
 export const generateDocxFromHtml = async (htmlContent: string, filename: string = 'Van_ban_phap_ly.docx') => {
     if (typeof docx === 'undefined') {
         console.error("DOCX library not loaded");
+        alert("Thư viện xuất file chưa sẵn sàng. Vui lòng tải lại trang và thử lại.");
         return;
     }
 
@@ -131,11 +132,18 @@ export const generateDocxFromHtml = async (htmlContent: string, filename: string
         }],
     });
 
-    const blob = await docx.Packer.toBlob(docxFile);
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    try {
+        const blob = await docx.Packer.toBlob(docxFile);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error("Error packing docx:", error);
+        alert("Lỗi khi tạo file Word. Vui lòng thử lại.");
+    }
 };

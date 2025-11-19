@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type {
   AnalysisReport, UploadedFile, FileCategory, ApplicableLaw,
@@ -480,8 +479,7 @@ export const analyzeConsultingCase = async (files: UploadedFile[], disputeConten
          Content: ${disputeContent}
          Client Request: ${clientRequest}
          `;
-         const response = await ai.models.generateContent({
-             model: "gemini-2.5-flash",
+         const response = await generateContentWithRetry("gemini-2.5-flash", {
              contents: { parts: [...fileParts, { text: prompt }] },
              config: {
                  systemInstruction: CONSULTING_SYSTEM_INSTRUCTION,
@@ -489,7 +487,9 @@ export const analyzeConsultingCase = async (files: UploadedFile[], disputeConten
                  responseSchema: CONSULTING_REPORT_SCHEMA
              }
          });
-         return JSON.parse(response.text || '{}');
+         
+         if (!response.text) throw new Error("No response from AI");
+         return JSON.parse(response.text);
      } catch (error) {
          throw handleGeminiError(error, 'analyzeConsultingCase');
      }
@@ -558,8 +558,7 @@ export const continueConsultingChat = async (report: ConsultingReport, history: 
 export const analyzeBusinessFormation = async (idea: string, info: any): Promise<BusinessFormationReport> => {
      try {
          const prompt = `Analyze business formation. Idea: ${idea}. Info: ${JSON.stringify(info)}`;
-         const response = await ai.models.generateContent({
-             model: "gemini-2.5-flash",
+         const response = await generateContentWithRetry("gemini-2.5-flash", {
              contents: prompt,
              config: {
                  systemInstruction: BUSINESS_FORMATION_SYSTEM_INSTRUCTION,
@@ -567,7 +566,9 @@ export const analyzeBusinessFormation = async (idea: string, info: any): Promise
                  responseSchema: BUSINESS_FORMATION_REPORT_SCHEMA
              }
          });
-         return JSON.parse(response.text || '{}');
+         
+         if (!response.text) throw new Error("No response from AI");
+         return JSON.parse(response.text);
      } catch (error) {
          throw handleGeminiError(error, 'analyzeBusinessFormation');
      }
@@ -627,8 +628,7 @@ export const analyzeLandProcedure = async (type: string, address: string, files:
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Analyze Land Procedure. Type: ${type}. Address: ${address}`;
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+        const response = await generateContentWithRetry("gemini-2.5-flash", {
             contents: { parts: [...fileParts, { text: prompt }] },
             config: {
                 systemInstruction: LAND_PROCEDURE_SYSTEM_INSTRUCTION,
@@ -636,7 +636,9 @@ export const analyzeLandProcedure = async (type: string, address: string, files:
                 responseSchema: LAND_PROCEDURE_REPORT_SCHEMA
             }
         });
-        return JSON.parse(response.text || '{}');
+        
+        if (!response.text) throw new Error("No response from AI");
+        return JSON.parse(response.text);
     } catch (error) {
         throw handleGeminiError(error, 'analyzeLandProcedure');
     }
@@ -646,8 +648,7 @@ export const analyzeDivorceCase = async (context: string, files: UploadedFile[])
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Analyze Divorce Case. Context: ${context}`;
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+        const response = await generateContentWithRetry("gemini-2.5-flash", {
             contents: { parts: [...fileParts, { text: prompt }] },
             config: {
                 systemInstruction: DIVORCE_SYSTEM_INSTRUCTION,
@@ -655,7 +656,9 @@ export const analyzeDivorceCase = async (context: string, files: UploadedFile[])
                 responseSchema: DIVORCE_REPORT_SCHEMA
             }
         });
-        return JSON.parse(response.text || '{}');
+        
+        if (!response.text) throw new Error("No response from AI");
+        return JSON.parse(response.text);
     } catch (error) {
         throw handleGeminiError(error, 'analyzeDivorceCase');
     }

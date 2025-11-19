@@ -840,7 +840,7 @@ export default function App() {
                                     type="text"
                                     value={jurisdiction}
                                     onChange={(e) => setJurisdiction(e.target.value)}
-                                    placeholder="VD: Tòa án nhân dân khu vực Hoàn Kiếm..."
+                                    placeholder="VD: Tòa án nhân dân khu vực 4, thành phố Hà Nội..."
                                     className="w-full p-2 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                     list="regional-courts-list-main"
                                 />
