@@ -2,9 +2,6 @@
 // Declare global docx variable from CDN
 declare var docx: any;
 
-const pxToPt = (px: number) => px * 0.75;
-
-// Helper to convert HTML heading tags to docx heading levels
 const getHeadingLevel = (tagName: string): any => {
     switch (tagName) {
         case 'H1': return docx.HeadingLevel.HEADING_1;
@@ -15,8 +12,8 @@ const getHeadingLevel = (tagName: string): any => {
     }
 };
 
-// Recursive function to process HTML nodes and create docx TextRuns
-const processNode = (node: Node, textRuns: any[], style: { bold?: boolean, italic?: boolean, underline?: boolean } = {}) => {
+// Recursive function to collect text runs from a node
+const processInlineContent = (node: Node, textRuns: any[], style: { bold?: boolean, italic?: boolean, underline?: boolean } = {}) => {
     if (node.nodeType === Node.TEXT_NODE) {
         const text = node.textContent || '';
         if (text) {
@@ -26,7 +23,7 @@ const processNode = (node: Node, textRuns: any[], style: { bold?: boolean, itali
                 italics: style.italic,
                 underline: style.underline ? { type: docx.UnderlineType.SINGLE } : undefined,
                 font: "Times New Roman",
-                size: 26, // 13pt = 26 half-points
+                size: 26, // 13pt
             }));
         }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
@@ -41,7 +38,7 @@ const processNode = (node: Node, textRuns: any[], style: { bold?: boolean, itali
         }
 
         for (let i = 0; i < element.childNodes.length; i++) {
-            processNode(element.childNodes[i], textRuns, newStyle);
+            processInlineContent(element.childNodes[i], textRuns, newStyle);
         }
     }
 };
@@ -57,43 +54,65 @@ export const generateDocxFromHtml = async (htmlContent: string, filename: string
     const bodyNodes = doc.body.childNodes;
     const paragraphs: any[] = [];
 
-    for (let i = 0; i < bodyNodes.length; i++) {
-        const node = bodyNodes[i];
+    // Recursively process block elements to generate paragraphs
+    const processBlock = (node: Node): any[] => {
+        const blockParagraphs: any[] = [];
         
         if (node.nodeType === Node.ELEMENT_NODE) {
             const element = node as HTMLElement;
-            const textRuns: any[] = [];
-            
-            // Process content of the block element
-            processNode(node, textRuns);
 
-            // Determine alignment
-            let alignment = docx.AlignmentType.JUSTIFIED; // Default for legal docs
+            // If it's a container for list items (UL/OL), process children
+            if (element.tagName === 'UL' || element.tagName === 'OL') {
+                for (let i = 0; i < element.childNodes.length; i++) {
+                    blockParagraphs.push(...processBlock(element.childNodes[i]));
+                }
+                return blockParagraphs;
+            }
+
+            const textRuns: any[] = [];
+            processInlineContent(node, textRuns);
+
+            // If textRuns is empty and it's not a spacing element like BR, skip
+            // (But keep headers even if empty? No, usually not needed)
+            // Note: processInlineContent adds \n for BR.
+            
+            let alignment = docx.AlignmentType.JUSTIFIED;
             if (element.style.textAlign === 'center') alignment = docx.AlignmentType.CENTER;
             if (element.style.textAlign === 'right') alignment = docx.AlignmentType.RIGHT;
             
-            // Special handling for Headers (often Center aligned in Vietnam)
+            // Headers are often centered in VN legal docs
             if (['H1', 'H2', 'H3'].includes(element.tagName)) {
                  alignment = docx.AlignmentType.CENTER;
             }
-
-            // Special Check: National Motto should always be centered
+            
+            // National Motto check
             const textContent = element.textContent || '';
             if (textContent.includes("CỘNG HÒA XÃ HỘI") || textContent.includes("Độc lập - Tự do")) {
                  alignment = docx.AlignmentType.CENTER;
             }
 
-            paragraphs.push(new docx.Paragraph({
+            const paragraphOptions: any = {
                 children: textRuns,
                 heading: getHeadingLevel(element.tagName),
                 alignment: alignment,
-                spacing: {
-                    line: 360, // 1.5 line spacing
-                    before: 120, // Spacing before paragraph
-                    after: 120,  // Spacing after paragraph
-                },
-            }));
+                spacing: { line: 360, before: 120, after: 120 } // 1.5 line spacing
+            };
+
+            // Handle Bullet Points for List Items
+            if (element.tagName === 'LI') {
+                paragraphOptions.bullet = { level: 0 };
+            }
+
+            // Only add paragraph if it has content or is a specific block type
+            if (textRuns.length > 0 || element.tagName === 'P' || element.tagName === 'LI' || ['H1','H2','H3','H4'].includes(element.tagName)) {
+                blockParagraphs.push(new docx.Paragraph(paragraphOptions));
+            }
         }
+        return blockParagraphs;
+    };
+
+    for (let i = 0; i < bodyNodes.length; i++) {
+        paragraphs.push(...processBlock(bodyNodes[i]));
     }
 
     const docxFile = new docx.Document({
@@ -101,7 +120,7 @@ export const generateDocxFromHtml = async (htmlContent: string, filename: string
             properties: {
                 page: {
                     margin: {
-                        top: 1440, // 1 inch = 1440 twips (approx 2.54 cm)
+                        top: 1440, // 1 inch
                         right: 1134, // approx 2cm
                         bottom: 1134,
                         left: 1701, // approx 3cm

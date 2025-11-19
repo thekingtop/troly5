@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { AnalysisReport } from '../types.ts';
 
@@ -25,9 +26,31 @@ export const LandInfoDisplay: React.FC<{ report: AnalysisReport }> = ({ report }
         return null;
     }
 
-    // Check if there is any actual data to display
-    const hasData = Object.values(landInfo).some(value => value !== undefined && value !== '');
-    if (!hasData) {
+    // STRICT VALIDATION:
+    // AI often returns "Không xác định", "Không có thông tin", "Chưa rõ" when specific land info is missing in general civil cases.
+    // We must filter these out to prevent the section from appearing incorrectly.
+    const hasMeaningfulData = Object.values(landInfo).some(value => {
+        if (!value || typeof value !== 'string') return false;
+        const text = value.trim().toLowerCase();
+        
+        const invalidPhrases = [
+            'không xác định',
+            'không có thông tin',
+            'không có',
+            'chưa rõ',
+            'không đề cập',
+            'không tìm thấy',
+            'n/a',
+            'unknown'
+        ];
+
+        // If the value contains any of these phrases, treat it as empty data.
+        // Example: "Diện tích: Không xác định rõ trong hồ sơ" -> Invalid.
+        // Example: "Diện tích: 100m2" -> Valid.
+        return !invalidPhrases.some(phrase => text.includes(phrase));
+    });
+
+    if (!hasMeaningfulData) {
         return null;
     }
 
@@ -37,7 +60,7 @@ export const LandInfoDisplay: React.FC<{ report: AnalysisReport }> = ({ report }
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 20.944A12.096 12.096 0 0012 21c4.217 0 7.9-2.405 9.997-5.993A11.952 11.952 0 0012 2.944a11.955 11.955 0 015.618 3.04z" />
                 </svg>
-                <span className="text-xs font-bold text-teal-800">Chế độ Phân tích: Đất đai</span>
+                <span className="text-xs font-bold text-teal-800">Dữ liệu Đất đai được trích xuất</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">

@@ -37,6 +37,7 @@ declare var docx: any;
 declare var XLSX: any;
 declare var jspdf: any;
 declare var html2canvas: any;
+declare var mammoth: any;
 
 type MainActionType = 'analyze' | 'update' | 'none';
 type View = 'caseAnalysis' | 'intelligentSearch' | 'argumentMap' | 'documentGenerator' | 'quickDraft' | 'dashboard' | 'fileManagement' | 'calendar' | 'client';
@@ -103,7 +104,7 @@ const StyledMagicIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 const BuildingOfficeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3.75h1.5m-1.5 3.75h1.5m3-7.5h1.5m-1.5 3.75h1.5m-1.5 3.75h1.5M9 21v-2.25a2.25 2.25 0 0 1 2.25-2.25h1.5A2.25 2.25 0 0 1 15 18.75V21" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3.75h1.5m-1.5 3.75h1.5m3-7.5h1.5m-1.5 3.75h1.5m-1.5 3.75h1.5m9 21v-2.25a2.25 2.25 0 0 1 2.25-2.25h1.5A2.25 2.25 0 0 1 15 18.75V21" />
   </svg>
 );
 
@@ -288,7 +289,7 @@ export default function App() {
         loadCases();
 
         const checkLibs = () => {
-            if (typeof docx !== 'undefined' && typeof XLSX !== 'undefined' && typeof jspdf !== 'undefined' && typeof html2canvas !== 'undefined') {
+            if (typeof docx !== 'undefined' && typeof XLSX !== 'undefined' && typeof jspdf !== 'undefined' && typeof html2canvas !== 'undefined' && typeof mammoth !== 'undefined') {
                 setLibsReady(true);
             } else {
                 setTimeout(checkLibs, 500);
@@ -454,6 +455,13 @@ export default function App() {
             setError("Vui lòng tải lên hồ sơ hoặc nhập yêu cầu.");
             return;
         }
+        
+        // Check if libraries are ready before starting processing that relies on them (e.g. docx parsing)
+        if (files.length > 0 && !libsReady) {
+             setError("Các thư viện xử lý tệp chưa sẵn sàng. Vui lòng thử lại sau giây lát.");
+             return;
+        }
+
         setError(null);
         setReport(null); // Clear previous report
 
@@ -471,7 +479,7 @@ export default function App() {
             setIsPreprocessingFinished(true);
         }
 
-    }, [files, query, processFiles]);
+    }, [files, query, processFiles, libsReady]);
 
     const handleUpdateClick = async () => {
         if (!report) return;

@@ -15,6 +15,7 @@ import { DownloadIcon } from './icons/DownloadIcon.tsx';
 import { RefreshIcon } from './icons/RefreshIcon.tsx';
 import { EditIcon } from './icons/EditIcon.tsx';
 import { LandInfoDisplay } from './LandInfoDisplay.tsx';
+import { AnalysisIcon } from './icons/AnalysisIcon.tsx'; // Ensure this import exists
 
 // --- Internal Components and Icons ---
 declare var html2canvas: any;
@@ -133,6 +134,15 @@ const getLoopholeSeverityClasses = (severity: LegalLoophole['severity']) => {
         case 'Trung bình': return 'border-amber-300 bg-amber-50/80';
         case 'Thấp': return 'border-slate-300 bg-slate-50/80';
         default: return 'border-slate-300 bg-slate-50/80';
+    }
+};
+
+const getAnalysisModeLabel = (type: LitigationType) => {
+    switch (type) {
+        case 'civil': return 'Dân sự';
+        case 'criminal': return 'Hình sự';
+        case 'administrative': return 'Hành chính';
+        default: return 'Chung';
     }
 };
 
@@ -604,6 +614,15 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                     {isReanalyzing ? <Loader /> : <RefreshIcon className="w-4 h-4" />}
                     Phân tích lại
                 </button>
+            </div>
+            
+            {/* Analysis Mode Banner */}
+            <div className={`flex items-center gap-2 mb-4 p-3 rounded-lg border border-slate-200 ${
+                litigationType === 'civil' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+                (litigationType === 'criminal' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-orange-50 border-orange-200 text-orange-800')
+            }`}>
+                <AnalysisIcon className="w-5 h-5" />
+                <span className="font-bold">Chế độ Phân tích: {getAnalysisModeLabel(litigationType)}</span>
             </div>
             
             {report && <WarRoomSection report={report} />}

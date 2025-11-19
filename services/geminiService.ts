@@ -36,6 +36,8 @@ import {
 
 // Declare process for the preview environment
 declare var process: { env: { API_KEY: string } };
+declare var mammoth: any;
+declare var XLSX: any;
 
 // Helper to get API Key from either Vite env (Vercel) or Process env (Preview)
 const getApiKey = (): string => {
@@ -73,25 +75,82 @@ const handleGeminiError = (error: any, action: string) => {
 };
 
 const fileToPart = async (file: UploadedFile) => {
-    // Assuming file.file is a File object.
-    const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file.file);
-        reader.onload = () => {
-             const result = reader.result as string;
-             // Remove data URL prefix
-             const base64Data = result.split(',')[1];
-             resolve(base64Data);
-        };
-        reader.onerror = reject;
-    });
+    const fileType = file.file.type;
+    const fileName = file.file.name;
 
-    return {
-        inlineData: {
-            data: base64,
-            mimeType: file.file.type
+    // 1. Handle Word Documents (.docx) via Mammoth
+    if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        try {
+            const arrayBuffer = await file.file.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+            return { text: `[File Content: ${fileName}]\n${result.value}` };
+        } catch (e) {
+            console.error("Error reading DOCX", e);
+            return { text: `[Error reading DOCX file: ${fileName}]` };
         }
-    };
+    }
+
+    // 2. Handle Excel Files (.xlsx, .xls) via XLSX
+    if (fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || fileType === 'application/vnd.ms-excel') {
+        try {
+            const arrayBuffer = await file.file.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            let textContent = `[Excel File Content: ${fileName}]\n`;
+            workbook.SheetNames.forEach((sheetName: any) => {
+                const sheet = workbook.Sheets[sheetName];
+                const csv = XLSX.utils.sheet_to_csv(sheet);
+                if (csv && csv.trim()) {
+                    textContent += `--- Sheet: ${sheetName} ---\n${csv}\n`;
+                }
+            });
+            return { text: textContent };
+        } catch (e) {
+             console.error("Error reading Excel", e);
+             return { text: `[Error reading Excel file: ${fileName}]` };
+        }
+    }
+    
+    // 3. Handle Plain Text
+    if (fileType === 'text/plain') {
+        try {
+            const text = await file.file.text();
+            return { text: `[Text File Content: ${fileName}]\n${text}` };
+        } catch (e) {
+             return { text: `[Error reading text file: ${fileName}]` };
+        }
+    }
+
+    // 4. Handle Supported Binary Types (Images & PDF) for Inline Data
+    // Gemini supports: image/png, image/jpeg, image/webp, image/heic, image/heif, application/pdf
+    if (fileType.startsWith('image/') || fileType === 'application/pdf') {
+        try {
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file.file);
+                reader.onload = () => {
+                    const result = reader.result as string;
+                    const base64Data = result.split(',')[1];
+                    resolve(base64Data);
+                };
+                reader.onerror = reject;
+            });
+
+            return {
+                inlineData: {
+                    data: base64,
+                    mimeType: fileType
+                }
+            };
+        } catch (e) {
+            console.error("Error reading binary file", e);
+            return { text: `[Error processing file: ${fileName}]` };
+        }
+    }
+
+    // 5. Fallback for unsupported types
+    console.warn(`Unsupported file type: ${fileType}`);
+    // Return a text warning so the prompt isn't empty, but don't crash the request
+    return { text: `[Warning: File "${fileName}" has an unsupported type (${fileType}) and was skipped from analysis.]` };
 };
 
 export const analyzeCaseFiles = async (
