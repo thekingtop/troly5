@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { AnalysisReport, ArgumentNode, ArgumentEdge, ArgumentNodeType, ChatMessage } from '../types.ts';
-import { generateArgumentText, chatAboutArgumentNode } from '../services/geminiService.ts';
+import { generateArgumentText, chatAboutArgumentNode, generateArgumentGraph } from '../services/geminiService.ts';
 import { Loader } from './Loader.tsx';
 import { MagicIcon } from './icons/MagicIcon.tsx';
 import { DownloadIcon } from './icons/DownloadIcon.tsx';
@@ -287,6 +288,8 @@ export const ArgumentMapView: React.FC<ArgumentMapViewProps> = ({ report, onUpda
     const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
     const [mode, setMode] = useState<'select' | 'link' | 'delete'>('select');
     const [linkSource, setLinkSource] = useState<string | null>(null);
+    
+    const [isGeneratingMap, setIsGeneratingMap] = useState(false);
 
     const draggingNode = useRef<{ id: string; offset: { x: number; y: number } } | null>(null);
     const isPanning = useRef(false);
@@ -295,7 +298,7 @@ export const ArgumentMapView: React.FC<ArgumentMapViewProps> = ({ report, onUpda
     const mapContentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (report?.argumentGraph) {
+        if (report?.argumentGraph && report.argumentGraph.nodes.length > 0) {
             setNodes(report.argumentGraph.nodes);
             setEdges(report.argumentGraph.edges);
         } else {
@@ -526,6 +529,21 @@ export const ArgumentMapView: React.FC<ArgumentMapViewProps> = ({ report, onUpda
         setNodes(newNodes);
         updateReport(newNodes, edges);
     };
+    
+    const handleGenerateMap = async () => {
+        if (!report) return;
+        setIsGeneratingMap(true);
+        try {
+            const graph = await generateArgumentGraph(report);
+            setNodes(graph.nodes);
+            setEdges(graph.edges);
+            updateReport(graph.nodes, graph.edges);
+        } catch (error) {
+            alert("Lỗi tạo bản đồ: " + (error instanceof Error ? error.message : "Unknown"));
+        } finally {
+            setIsGeneratingMap(false);
+        }
+    }
 
     const selectedNodesMemo = useMemo(() => {
         return nodes.filter(node => selectedNodeIds.has(node.id));
@@ -558,8 +576,32 @@ export const ArgumentMapView: React.FC<ArgumentMapViewProps> = ({ report, onUpda
     };
 
 
-    if (!report || !report.argumentGraph) {
+    if (!report) {
         return <div className="flex items-center justify-center w-full h-full text-center text-slate-500 bg-slate-50 rounded-lg border">Vui lòng chạy phân tích vụ việc để tạo bản đồ lập luận.</div>;
+    }
+    
+    if (nodes.length === 0 && !isGeneratingMap) {
+        return (
+            <div className="flex flex-col items-center justify-center w-full h-full text-center text-slate-500 bg-slate-50 rounded-lg border gap-4">
+                <p>Bản đồ chưa được tạo cho vụ việc này.</p>
+                <button 
+                    onClick={handleGenerateMap} 
+                    className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                    <MagicIcon className="w-5 h-5" />
+                    Tạo Bản đồ Lập luận từ Báo cáo
+                </button>
+            </div>
+        );
+    }
+
+    if (isGeneratingMap) {
+         return (
+            <div className="flex flex-col items-center justify-center w-full h-full text-center text-slate-500 bg-slate-50 rounded-lg border gap-4">
+                <Loader />
+                <p>AI đang vẽ bản đồ lập luận...</p>
+            </div>
+        );
     }
     
     const mapCursor = { select: 'auto', link: 'crosshair', delete: 'crosshair' }[mode];

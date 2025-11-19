@@ -5,13 +5,14 @@ import type {
   LitigationType, ParagraphGenerationOptions, ConsultingReport,
   BusinessFormationReport, LandProcedureReport, DivorceReport,
   ChatMessage, ArgumentNode, FormData, DocType,
-  OpponentArgument, LegalLoophole
+  OpponentArgument, LegalLoophole, ArgumentGraph
 } from '../types.ts';
 import {
   SYSTEM_INSTRUCTION, REPORT_SCHEMA, CONSULTING_REPORT_SCHEMA,
   BUSINESS_FORMATION_REPORT_SCHEMA, LAND_PROCEDURE_REPORT_SCHEMA,
   DIVORCE_REPORT_SCHEMA, SUMMARY_EXTRACTION_SCHEMA,
   OPPONENT_ANALYSIS_SCHEMA, PREDICT_OPPONENT_ARGS_SCHEMA,
+  ARGUMENT_GRAPH_SCHEMA, // Import this
   SUMMARY_EXTRACTION_SYSTEM_INSTRUCTION,
   CONSULTING_SYSTEM_INSTRUCTION,
   BUSINESS_FORMATION_SYSTEM_INSTRUCTION,
@@ -31,7 +32,8 @@ import {
   LITIGATION_CHAT_UPDATE_SYSTEM_INSTRUCTION,
   BUSINESS_FORMATION_CHAT_UPDATE_SYSTEM_INSTRUCTION,
   LAND_PROCEDURE_CHAT_UPDATE_SYSTEM_INSTRUCTION,
-  DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION
+  DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+  ARGUMENT_GRAPH_GENERATION_SYSTEM_INSTRUCTION
 } from '../constants.ts';
 
 // Declare process for the preview environment
@@ -72,6 +74,27 @@ const handleGeminiError = (error: any, action: string) => {
         return new Error(`Lỗi khi ${action}: ${error.message}`);
     }
     return new Error(`Lỗi không xác định khi ${action}.`);
+};
+
+// --- Retry Logic Helper ---
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const generateContentWithRetry = async (params: any, retries = 3, delay = 2000): Promise<any> => {
+    try {
+        return await ai.models.generateContent(params);
+    } catch (error: any) {
+        // Check for 503 (Service Unavailable/Overloaded) or 429 (Too Many Requests)
+        const errorCode = error?.status || error?.response?.status || error?.error?.code;
+        const errorMessage = error?.message || error?.error?.message || '';
+
+        if ((errorCode === 503 || errorCode === 429 || errorMessage.includes('overloaded')) && retries > 0) {
+            console.warn(`Gemini API overloaded (${errorCode}). Retrying in ${delay}ms... (${retries} retries left)`);
+            await wait(delay);
+            // Exponential backoff: double the delay for the next retry
+            return generateContentWithRetry(params, retries - 1, delay * 2);
+        }
+        throw error;
+    }
 };
 
 const fileToPart = async (file: UploadedFile) => {
@@ -170,7 +193,7 @@ export const analyzeCaseFiles = async (
         ${previousAnalysis ? `Previous Stage: ${previousAnalysis.stage}. THIS IS AN UPDATE REQUEST.` : ''}
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: {
                 parts: [...fileParts, { text: prompt }]
@@ -189,12 +212,30 @@ export const analyzeCaseFiles = async (
     }
 };
 
+export const generateArgumentGraph = async (report: AnalysisReport): Promise<ArgumentGraph> => {
+    try {
+        const prompt = `Generate Argument Graph from Report: ${JSON.stringify(report)}`;
+        const response = await generateContentWithRetry({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                systemInstruction: ARGUMENT_GRAPH_GENERATION_SYSTEM_INSTRUCTION,
+                responseMimeType: "application/json",
+                responseSchema: ARGUMENT_GRAPH_SCHEMA
+            }
+        });
+        return JSON.parse(response.text || '{"nodes": [], "edges": []}');
+    } catch (error) {
+        throw handleGeminiError(error, 'generateArgumentGraph');
+    }
+};
+
 export const categorizeMultipleFiles = async (files: File[]): Promise<Record<string, FileCategory>> => {
      try {
         const fileList = files.map(f => f.name).join(', ');
         const prompt = `Categorize these files based on their names: ${fileList}. Return a JSON object where keys are filenames and values are categories (Uncategorized, Contract, Correspondence, Minutes, Evidence, Image).`;
         
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: prompt,
              config: {
@@ -215,7 +256,8 @@ export const extractSummariesFromFiles = async (files: UploadedFile[], clientPos
         const fileParts = await Promise.all(files.slice(0, 5).map(fileToPart)); // Limit to 5 files for summary
         const prompt = `Extract case summary and client request. Client position: ${clientPosition}`;
         
-        const response = await ai.models.generateContent({
+        // Use the retry wrapper here
+        const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: { parts: [...fileParts, { text: prompt }] },
              config: {
@@ -233,26 +275,20 @@ export const extractSummariesFromFiles = async (files: UploadedFile[], clientPos
 };
 
 export const reanalyzeCaseWithCorrections = async (report: AnalysisReport, files: UploadedFile[], clientPosition: string): Promise<AnalysisReport> => {
-    // Re-uses analyzeCaseFiles but could have specific prompt logic if needed.
-    // For simplicity, treating it as a fresh analysis with existing report context if we were to implement robust re-analysis.
-    // Currently simple re-run.
     return analyzeCaseFiles(files, "Re-analyze with corrections based on previous context.", { report, stage: report.litigationStage }, clientPosition);
 };
 
 export const intelligentSearchQuery = async (report: AnalysisReport, files: UploadedFile[], history: ChatMessage[], query: string): Promise<string> => {
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
-        // Construct chat history for context
-        // ... (Simplified for brevity, usually we map history to Content objects)
-        
         const prompt = `
         Context: ${JSON.stringify(report)}
         Question: ${query}
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
-            contents: { parts: [...fileParts, { text: prompt }] }, // Include files for grounding
+            contents: { parts: [...fileParts, { text: prompt }] },
             config: {
                 systemInstruction: INTELLIGENT_SEARCH_SYSTEM_INSTRUCTION
             }
@@ -272,7 +308,7 @@ export const continueLitigationChat = async (report: AnalysisReport, history: Ch
         User Message: ${message}
         `;
         
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: { parts: [...fileParts, { text: prompt }] },
             config: {
@@ -281,7 +317,6 @@ export const continueLitigationChat = async (report: AnalysisReport, history: Ch
         });
 
         const text = response.text || "";
-        // Parsing the response format: [Response] --UPDATES-- [JSON]
         const parts = text.split('--UPDATES--');
         const chatResponse = parts[0].trim();
         let updatedReport: AnalysisReport | undefined;
@@ -302,7 +337,7 @@ export const continueLitigationChat = async (report: AnalysisReport, history: Ch
 export const refineText = async (text: string, mode: string): Promise<string> => {
     try {
         const prompt = `Refine this text. Mode: ${mode}. Text: ${text}`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
@@ -339,7 +374,7 @@ export const generateDocumentFromTemplate = async (docType: DocType, formData: F
         Draft the complete document in Vietnamese.
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: { systemInstruction, temperature: 0.5 }
@@ -358,7 +393,7 @@ export const extractInfoFromFile = async (file: UploadedFile, docType: DocType):
     try {
         const filePart = await fileToPart(file);
         const prompt = `Extract information for a ${docType} form. Return JSON key-value pairs matching the form fields if possible.`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: { parts: [filePart, { text: prompt }] },
             config: { responseMimeType: "application/json" }
@@ -372,7 +407,7 @@ export const extractInfoFromFile = async (file: UploadedFile, docType: DocType):
 export const generateFieldContent = async (formData: FormData, docTypeLabel: string, fieldName: string): Promise<string> => {
      try {
          const prompt = `Generate content for field '${fieldName}' in document '${docTypeLabel}'. Context: ${JSON.stringify(formData)}`;
-         const response = await ai.models.generateContent({
+         const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: prompt
          });
@@ -389,7 +424,7 @@ export const generateParagraph = async (request: string, options: ParagraphGener
         Options: ${JSON.stringify(options)}
         ${useTacticalMode ? TACTICAL_DRAFTING_INSTRUCTION : ''}
         `;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: prompt
         });
@@ -407,7 +442,7 @@ export const analyzeConsultingCase = async (files: UploadedFile[], disputeConten
          Content: ${disputeContent}
          Client Request: ${clientRequest}
          `;
-         const response = await ai.models.generateContent({
+         const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: { parts: [...fileParts, { text: prompt }] },
              config: {
@@ -429,7 +464,7 @@ export const generateConsultingDocument = async (report: ConsultingReport, dispu
         Dispute: ${disputeContent}
         Request: ${request}
         `;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: prompt
         });
@@ -442,7 +477,7 @@ export const generateConsultingDocument = async (report: ConsultingReport, dispu
 export const summarizeText = async (text: string, fieldName: string): Promise<string> => {
     try {
         const prompt = `Summarize this text for field '${fieldName}': ${text}`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: prompt
         });
@@ -463,7 +498,7 @@ export const continueConsultingChat = async (report: ConsultingReport, history: 
          Report: ${JSON.stringify(report)}
          Message: ${message}
          `;
-         const response = await ai.models.generateContent({
+         const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: { parts: [...fileParts, { text: prompt }] },
              config: { systemInstruction: CONSULTING_CHAT_UPDATE_SYSTEM_INSTRUCTION }
@@ -485,7 +520,7 @@ export const continueConsultingChat = async (report: ConsultingReport, history: 
 export const analyzeBusinessFormation = async (idea: string, info: any): Promise<BusinessFormationReport> => {
      try {
          const prompt = `Analyze business formation. Idea: ${idea}. Info: ${JSON.stringify(info)}`;
-         const response = await ai.models.generateContent({
+         const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: prompt,
              config: {
@@ -504,7 +539,7 @@ export const continueBusinessFormationChat = async (report: BusinessFormationRep
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Report: ${JSON.stringify(report)}. Message: ${message}`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: { parts: [...fileParts, { text: prompt }] },
              config: { systemInstruction: BUSINESS_FORMATION_CHAT_UPDATE_SYSTEM_INSTRUCTION }
@@ -525,7 +560,7 @@ export const continueBusinessFormationChat = async (report: BusinessFormationRep
 export const generateArgumentText = async (nodes: ArgumentNode[]): Promise<string> => {
     try {
         const prompt = `Generate argument text from nodes: ${JSON.stringify(nodes)}`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: { systemInstruction: ARGUMENT_GENERATION_SYSTEM_INSTRUCTION }
@@ -539,7 +574,7 @@ export const generateArgumentText = async (nodes: ArgumentNode[]): Promise<strin
 export const chatAboutArgumentNode = async (node: ArgumentNode, history: ChatMessage[], message: string): Promise<string> => {
      try {
          const prompt = `Node: ${JSON.stringify(node)}. Message: ${message}`;
-         const response = await ai.models.generateContent({
+         const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: prompt,
              config: { systemInstruction: ARGUMENT_NODE_CHAT_SYSTEM_INSTRUCTION }
@@ -554,7 +589,7 @@ export const analyzeLandProcedure = async (type: string, address: string, files:
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Analyze Land Procedure. Type: ${type}. Address: ${address}`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: { parts: [...fileParts, { text: prompt }] },
             config: {
@@ -573,7 +608,7 @@ export const analyzeDivorceCase = async (context: string, files: UploadedFile[])
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Analyze Divorce Case. Context: ${context}`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: { parts: [...fileParts, { text: prompt }] },
             config: {
@@ -592,7 +627,7 @@ export const continueLandChat = async (report: LandProcedureReport, history: Cha
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Report: ${JSON.stringify(report)}. Message: ${message}`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: { parts: [...fileParts, { text: prompt }] },
             config: { systemInstruction: LAND_PROCEDURE_CHAT_UPDATE_SYSTEM_INSTRUCTION }
@@ -614,7 +649,7 @@ export const continueDivorceChat = async (report: DivorceReport, history: ChatMe
      try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Report: ${JSON.stringify(report)}. Message: ${message}`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: { parts: [...fileParts, { text: prompt }] },
             config: { systemInstruction: DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION }
@@ -635,7 +670,7 @@ export const continueDivorceChat = async (report: DivorceReport, history: ChatMe
 export const explainLaw = async (lawText: string): Promise<string> => {
     try {
         const prompt = `Explain this law simply: ${lawText}`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: prompt
         });
@@ -652,7 +687,7 @@ export const continueContextualChat = async (report: AnalysisReport, history: Ch
         Section: ${sectionTitle}
         Message: ${message}
         `;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: { systemInstruction: CONTEXTUAL_CHAT_SYSTEM_INSTRUCTION }
@@ -667,7 +702,7 @@ export const predictOpponentArguments = async (report: AnalysisReport, files: Up
      try {
          const fileParts = await Promise.all(files.map(fileToPart));
          const prompt = `Predict opponent arguments based on report: ${JSON.stringify(report)}`;
-         const response = await ai.models.generateContent({
+         const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: { parts: [...fileParts, { text: prompt }] },
              config: {
@@ -687,7 +722,7 @@ export const analyzeOpponentArguments = async (report: AnalysisReport, files: Up
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Analyze opponent arguments: ${opponentArgs}. Report: ${JSON.stringify(report)}`;
-        const response = await ai.models.generateContent({
+        const response = await generateContentWithRetry({
             model: "gemini-2.5-flash",
             contents: { parts: [...fileParts, { text: prompt }] },
              config: {
@@ -705,7 +740,7 @@ export const analyzeOpponentArguments = async (report: AnalysisReport, files: Up
 export const runDevilAdvocateAnalysis = async (report: AnalysisReport): Promise<{ weakness: string, counterStrategy: string }[]> => {
      try {
          const prompt = `Run Devil's Advocate Analysis on: ${JSON.stringify(report)}`;
-         const response = await ai.models.generateContent({
+         const response = await generateContentWithRetry({
              model: "gemini-2.5-flash",
              contents: prompt,
              config: {
