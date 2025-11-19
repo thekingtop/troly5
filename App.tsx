@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FileUpload } from './components/FileUpload.tsx';
 import { ReportDisplay } from './components/ReportDisplay.tsx';
 import { Loader } from './components/Loader.tsx';
-import { analyzeCaseFiles, generateContextualDocument, categorizeMultipleFiles, generateReportSummary, refineText, extractSummariesFromFiles, reanalyzeCaseWithCorrections, intelligentSearchQuery, continueLitigationChat } from './services/geminiService.ts';
+import { analyzeCaseFiles, categorizeMultipleFiles, extractSummariesFromFiles, reanalyzeCaseWithCorrections, intelligentSearchQuery, continueLitigationChat } from './services/geminiService.ts';
 import { db, getAllCasesSorted, saveCase, deleteCaseById, clearAndBulkAddCases } from './services/db.ts';
 import type { AnalysisReport, UploadedFile, SavedCase, SerializableFile, LitigationStage, LitigationType, FileCategory, ApplicableLaw, LegalLoophole, ParagraphGenerationOptions, ChatMessage, DraftingMode } from './types.ts';
 import { ConsultingWorkflow, BusinessFormationWorkflow } from './components/ConsultingWorkflow.tsx';

@@ -68,10 +68,34 @@ export interface CaseProspects {
     risks: string[];
 }
 
+// --- ADVANCED LITIGATION TYPES (Cunning Lawyer Upgrade) ---
+
+export interface CrossExamQuestion {
+    question: string;
+    type: 'Leading' | 'Locking' | 'Open' | 'Clarifying';
+    target: string; // Who to ask (Witness, Opponent)
+    goal: string; // What fact to prove/disprove
+    expectedAnswer: string; // Anticipated response
+}
+
+export interface StrategyLayer {
+    surfaceStrategy: string[]; // Phương án bề nổi (Public stance)
+    deepStrategy: string[];    // Phương án ngầm (Hidden tactical goal)
+}
+
+export interface WinProbability {
+    score: number; // 0-100
+    rationale: string;
+    swingFactors: string[]; // Factors that could change the outcome
+}
+
 export interface ProposedStrategy {
     preLitigation: string[];
     litigation: string[];
-    psychologicalStrategy?: string; // NEW: Chiến lược tâm lý & Phán đoán
+    proceduralTactics?: string[]; 
+    psychologicalStrategy?: string; 
+    crossExaminationPlan?: CrossExamQuestion[]; // NEW: Kế hoạch thẩm vấn chéo
+    layeredStrategy?: StrategyLayer; // NEW: Chiến lược Ẩn - Hiện
 }
 
 export interface ProceduralStatus {
@@ -151,18 +175,19 @@ export interface AnalysisReport {
   gapAnalysis: GapAnalysis;
   caseProspects: CaseProspects;
   proposedStrategy: ProposedStrategy;
+  winProbabilityAnalysis?: WinProbability; // NEW: Phân tích xác suất thắng thua
   requestResolutionPlan?: string[];
   customNotes?: string;
   quickSummary?: string;
-  userAddedLaws?: ApplicableLaw[]; // Field for user-added legal bases
-  contingencyPlan?: string[]; // phương án xử lý nếu thua kiện
-  prospectsChat?: ChatMessage[]; // For Case Prospects chat
-  gapAnalysisChat?: ChatMessage[]; // For Gap Analysis chat
-  strategyChat?: ChatMessage[]; // For Proposed Strategy chat
-  resolutionPlanChat?: ChatMessage[]; // For Request Resolution Plan chat
-  intelligentSearchChat?: ChatMessage[]; // For Intelligent Q&A
-  argumentGraph?: ArgumentGraph; // Data for the Argument Map
-  opponentAnalysis?: OpponentArgument[]; // For Opponent Argument Analysis
+  userAddedLaws?: ApplicableLaw[]; 
+  contingencyPlan?: string[]; 
+  prospectsChat?: ChatMessage[]; 
+  gapAnalysisChat?: ChatMessage[]; 
+  strategyChat?: ChatMessage[]; 
+  resolutionPlanChat?: ChatMessage[]; 
+  intelligentSearchChat?: ChatMessage[]; 
+  argumentGraph?: ArgumentGraph; 
+  opponentAnalysis?: OpponentArgument[]; 
   applicableLawsChat?: ChatMessage[];
   contingencyPlanChat?: ChatMessage[];
   globalChatHistory?: ChatMessage[];
@@ -184,7 +209,12 @@ export interface ConsultingReport {
         outcome: string;
     }[];
     nextActions?: string[];
-    negotiationLeverage?: string; // NEW: Đòn bẩy đàm phán & Đọc vị đối phương
+    negotiationLeverage?: string;
+    negotiationTactics?: { // NEW: Đàm phán bậc cao
+        anchoringPoint: string; // Điểm neo giá
+        silenceTactics: string; // Khi nào nên im lặng
+        pacingStrategy: string; // Điều tiết nhịp độ
+    };
 }
 
 // --- New Business Formation Report Structure ---
@@ -192,6 +222,11 @@ export interface BusinessFormationReport {
     modelComparison: {
         business: { pros: string[], cons: string[] },
         soleProprietorship: { pros: string[], cons: string[] },
+        costComparison: { 
+             setupCost: string; 
+             accountingCost: string; 
+             taxComplexity: string; 
+        };
         recommendation: string;
         recommendationReasoning: string;
     };
@@ -199,6 +234,16 @@ export interface BusinessFormationReport {
         businessTaxes: { name: string, description: string }[];
         soleProprietorshipTaxes: { name: string, description: string }[];
         optimizationTips: string[];
+        vatManagementGuide?: {
+            storageRules: string;
+            deductionTactics: string[];
+            inputInvoiceChecklist: string[];
+        };
+        nonInvoiceInputGuide?: {
+            strategy: string;
+            documentation: string[];
+            risks: string;
+        };
     };
     procedureGuide: {
         businessSteps: { step: string, description: string, documents: string }[];
@@ -206,37 +251,37 @@ export interface BusinessFormationReport {
     };
     validExpensesGuide: string[];
     legalRisks: string[];
-    regulatoryArbitrage?: string; // NEW: Chiến thuật lách luật/tối ưu cơ chế
+    regulatoryArbitrage?: string; 
     globalChatHistory?: ChatMessage[];
 }
 
 // --- NEW: Land Procedure Report Structure ---
 export interface LandProcedureReport {
-    procedureType: string; // e.g., "Transfer", "Inheritance"
-    localRegulations: string; // Citation of specific provincial decisions
+    procedureType: string; 
+    localRegulations: string; 
     stepByStepGuide: { step: string; description: string; location: string; estimatedTime: string }[];
     documentChecklist: { name: string; required: boolean; notes: string; status: 'missing' | 'available' }[];
     financialEstimation: {
         item: string;
-        amount: string; // Estimate or formula
-        basis: string; // Legal basis for calculation (e.g., 2% TNCN)
+        amount: string; 
+        basis: string; 
     }[];
-    legalRisksAndTips: string[]; // Cunning lawyer tips for land
+    legalRisksAndTips: string[]; 
     globalChatHistory?: ChatMessage[];
 }
 
 // --- NEW: Divorce Report Structure ---
 export interface DivorceReport {
-    divorceType: 'ThuanTinh' | 'DonPhuong'; // Amicable or Unilateral
+    divorceType: 'ThuanTinh' | 'DonPhuong'; 
     custodyAnalysis: {
         strategy: string;
         evidenceNeeded: string[];
-        cunningTips: string; // How to win custody
+        cunningTips: string; 
     };
     assetDivision: {
         commonAssets: string[];
         privateAssets: string[];
-        divisionStrategy: string; // How to maximize asset retention
+        divisionStrategy: string; 
         cunningTips: string;
     };
     procedureRoadmap: { step: string; description: string }[];
@@ -248,12 +293,12 @@ export interface DivorceReport {
 // --- Types for Case Management ---
 
 export type LitigationType = 'civil' | 'criminal' | 'administrative';
-export type LitigationStage = string; // Now a generic string to accommodate dynamic stages
+export type LitigationStage = string; 
 
 export interface SerializableFile {
     name: string;
     type: string;
-    content: string; // base64 encoded string
+    content: string; 
 }
 
 export interface SavedCase {
@@ -271,7 +316,7 @@ export interface SavedCase {
     analysisReport: AnalysisReport | null;
     consultingReport?: ConsultingReport | null;
     businessFormationReport?: BusinessFormationReport | null;
-    landProcedureReport?: LandProcedureReport | null; // NEW
-    divorceReport?: DivorceReport | null; // NEW
+    landProcedureReport?: LandProcedureReport | null; 
+    divorceReport?: DivorceReport | null; 
     jurisdiction?: string;
 }

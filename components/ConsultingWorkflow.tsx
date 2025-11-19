@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FileUpload } from './FileUpload.tsx';
 import { Loader } from './Loader.tsx';
@@ -14,6 +15,7 @@ import { ChatIcon } from './icons/ChatIcon.tsx';
 import { SendIcon } from './icons/SendIcon.tsx';
 import { ChatBubbleLeftIcon } from './icons/ChatBubbleLeftIcon.tsx';
 import { DOC_TYPE_FIELDS, FIELD_LABELS, REGIONAL_COURTS } from '../constants.ts';
+import { ReceiptIcon } from './icons/ReceiptIcon.tsx';
 
 // --- Internal Icons ---
 const PanelCollapseIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -116,6 +118,18 @@ const LeverageIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 const ArbitrageIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z" />
+  </svg>
+);
+
+const CalculatorIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5a2.25 2.25 0 0 1 2.25 2.25v12a2.25 2.25 0 0 1-2.25 2.25h-7.5a2.25 2.25 0 0 1-2.25-2.25v-12A2.25 2.25 0 0 1 8.25 6Z" />
+  </svg>
+);
+
+const ShoppingBagIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
   </svg>
 );
 
@@ -1094,6 +1108,29 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
                                         <ul className="list-disc list-inside space-y-1 text-red-700 mt-2"> {report.modelComparison.soleProprietorship.cons.map((c,i) => <li key={i} className="flex items-start"><span className="mr-2 mt-1">✗</span><span>{c}</span></li>)}</ul>
                                     </div>
                                 </div>
+                                {/* New Cost Comparison Section */}
+                                {report.modelComparison.costComparison && (
+                                    <div className="mt-4 border rounded-md overflow-hidden">
+                                        <h4 className="bg-slate-100 p-2 text-sm font-bold text-slate-700 border-b flex items-center gap-2">
+                                            <CalculatorIcon className="w-4 h-4" />
+                                            So sánh Chi phí Thực tế (Cáo già)
+                                        </h4>
+                                        <div className="grid grid-cols-3 text-sm divide-x bg-white">
+                                            <div className="p-2 font-semibold text-slate-600">Hạng mục</div>
+                                            <div className="p-2 font-bold text-blue-700">Doanh nghiệp</div>
+                                            <div className="p-2 font-bold text-amber-700">Hộ kinh doanh</div>
+
+                                            <div className="p-2 border-t text-slate-600">Phí Thành lập</div>
+                                            <div className="p-2 border-t col-span-2"><CunningLawyerText text={report.modelComparison.costComparison.setupCost} /></div>
+
+                                            <div className="p-2 border-t text-slate-600">Kế toán & Vận hành</div>
+                                            <div className="p-2 border-t col-span-2"><CunningLawyerText text={report.modelComparison.costComparison.accountingCost} /></div>
+
+                                            <div className="p-2 border-t text-slate-600">Độ phức tạp Thuế</div>
+                                            <div className="p-2 border-t col-span-2"><CunningLawyerText text={report.modelComparison.costComparison.taxComplexity} /></div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                              <div className="p-4 bg-white border border-slate-200 rounded-lg shadow-lg">
@@ -1124,6 +1161,60 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
                                     <h4 className="font-bold text-sm text-slate-800 mb-2">Chiến thuật Tối ưu Thuế (Cáo già)</h4>
                                     <div className="text-sm space-y-2"><CunningLawyerText text={report.taxAnalysis.optimizationTips} /></div>
                                 </div>
+                                {report.taxAnalysis.vatManagementGuide && (
+                                    <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-md">
+                                        <h4 className="font-bold text-sm text-blue-900 mb-3 flex items-center gap-2">
+                                            <ReceiptIcon className="w-5 h-5" />
+                                            Quản lý Hóa đơn GTGT & Khấu trừ Thuế (Cáo già)
+                                        </h4>
+                                        <div className="space-y-3 text-sm">
+                                            <div>
+                                                <span className="font-semibold text-blue-800">Quy tắc Lưu trữ An toàn:</span>
+                                                <p className="text-slate-700 mt-1">{report.taxAnalysis.vatManagementGuide.storageRules}</p>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-blue-800">Checklist Hóa đơn Đầu vào:</span>
+                                                <ul className="list-disc list-inside mt-1 text-slate-700 pl-2">
+                                                    {report.taxAnalysis.vatManagementGuide.inputInvoiceChecklist.map((item, i) => (
+                                                        <li key={i}>{item}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-blue-800">Chiến thuật Tối đa hóa Khấu trừ:</span>
+                                                <div className="mt-1"><CunningLawyerText text={report.taxAnalysis.vatManagementGuide.deductionTactics} /></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* New Non-Invoice Input Section */}
+                                {report.taxAnalysis.nonInvoiceInputGuide && (
+                                    <div className="mt-4 p-4 bg-orange-50 border-l-4 border-orange-400 rounded-r-md">
+                                        <h4 className="font-bold text-sm text-orange-900 mb-3 flex items-center gap-2">
+                                            <ShoppingBagIcon className="w-5 h-5" />
+                                            Xử lý Đầu vào Không Hóa đơn (Hàng chợ/Mua lẻ)
+                                        </h4>
+                                        <div className="space-y-3 text-sm">
+                                            <div>
+                                                <span className="font-semibold text-orange-800">Chiến lược Xử lý:</span>
+                                                <div className="mt-1 text-slate-700"><CunningLawyerText text={report.taxAnalysis.nonInvoiceInputGuide.strategy} /></div>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-orange-800">Hồ sơ Bắt buộc (Bảng kê 01/TNDN):</span>
+                                                <ul className="list-disc list-inside mt-1 text-slate-700 pl-2">
+                                                    {report.taxAnalysis.nonInvoiceInputGuide.documentation.map((item, i) => (
+                                                        <li key={i}>{item}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-orange-800">Cảnh báo Rủi ro:</span>
+                                                <p className="text-slate-700 mt-1">{report.taxAnalysis.nonInvoiceInputGuide.risks}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             
                             {/* Regulatory Arbitrage Section (NEW) */}

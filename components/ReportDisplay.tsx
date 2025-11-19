@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import type { AnalysisReport, ApplicableLaw, LawArticle, UploadedFile, LitigationType, LegalLoophole, ChatMessage, CaseTimelineEvent, OpponentArgument, SupportingEvidence } from '../types.ts';
+import type { AnalysisReport, ApplicableLaw, LawArticle, UploadedFile, LitigationType, LegalLoophole, ChatMessage, CaseTimelineEvent, OpponentArgument, SupportingEvidence, CrossExamQuestion } from '../types.ts';
 import { MagicIcon } from './icons/MagicIcon.tsx';
 import { explainLaw, continueContextualChat, analyzeOpponentArguments, predictOpponentArguments, runDevilAdvocateAnalysis } from '../services/geminiService.ts';
 import { Loader } from './Loader.tsx';
@@ -25,6 +25,18 @@ const BrainIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   </svg>
 );
 
+const ShieldCheckIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
+  </svg>
+);
+
+const ProcedureIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
+  </svg>
+);
+
 // --- Icons for Loophole Categories ---
 const ContractIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
@@ -34,11 +46,6 @@ const ContractIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 const LawIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0 0 12 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52v16.5m-3.5-16.5v16.5m-3.5-16.5v16.5m0 0C5.116 20.507 3 19.742 3 18.25V8.75c0-1.492 2.116-2.257 4.5-2.257m0 11.75c2.384 0 4.5-.765 4.5-2.257V8.75C12 7.258 9.884 6.5 7.5 6.5m0 11.75 4.5-11.75" />
-  </svg>
-);
-const ProcedureIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
   </svg>
 );
 const InfoIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -64,6 +71,13 @@ const CunningLawyerIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <path fillRule="evenodd" d="M8.25 6.75a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0ZM15.75 9.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM4.5 9.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM15.375 16.125a2.625 2.625 0 1 1 5.25 0 2.625 2.625 0 0 1-5.25 0ZM12 18.75a.75.75 0 0 0 .75.75h.008a.75.75 0 0 0 .75-.75V18a3 3 0 0 0-1.5 0v.75ZM12 21a.75.75 0 0 0 .75.75h.008a.75.75 0 0 0 .75-.75v-.375a3 3 0 0 0-1.5 0v.375Z" clipRule="evenodd" />
     <path d="M12 1.5c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 1.5 12 1.5ZM8.625 15a.75.75 0 0 0-1.5 0v.625H6.375a.75.75 0 0 0 0 1.5h.75v.625a.75.75 0 0 0 1.5 0v-.625h.75a.75.75 0 0 0 0-1.5h-.75V15Zm6 0a.75.75 0 0 0-1.5 0v.625H12.375a.75.75 0 0 0 0 1.5h.75v.625a.75.75 0 0 0 1.5 0v-.625h.75a.75.75 0 0 0 0-1.5h-.75V15Z" />
   </svg>
+);
+
+const TargetIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.223 7.942-5.281.318Zm-3.182 0-2.51 2.225.569-9.47 5.223 7.942-5.281.318Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Z" />
+    </svg>
 );
 
 const CunningLawyerText: React.FC<{ text: string | string[] | undefined }> = ({ text }) => {
@@ -255,6 +269,97 @@ const DevilAdvocateSection: React.FC<{ report: AnalysisReport }> = ({ report }) 
                         </div>
                     ))}
                     <button onClick={() => setShow(false)} className="text-xs text-gray-500 underline hover:text-gray-300 mt-2">Ẩn phản biện</button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- WAR ROOM COMPONENT (NEW) ---
+const WarRoomSection: React.FC<{ report: AnalysisReport }> = ({ report }) => {
+    const { winProbabilityAnalysis, proposedStrategy } = report;
+    const layeredStrategy = proposedStrategy?.layeredStrategy;
+    const crossExamPlan = proposedStrategy?.crossExaminationPlan;
+
+    if (!winProbabilityAnalysis && !layeredStrategy && !crossExamPlan) return null;
+
+    return (
+        <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 text-slate-200 mb-6 soft-shadow">
+            <div className="flex items-center gap-2 mb-4 border-b border-slate-700 pb-2">
+                <TargetIcon className="w-6 h-6 text-red-500" />
+                <h3 className="text-lg font-bold text-white">PHÒNG CHIẾN THUẬT (WAR ROOM)</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Win Probability */}
+                {winProbabilityAnalysis && (
+                    <div className="bg-slate-800 p-4 rounded-lg border border-slate-600">
+                        <h4 className="text-sm font-bold text-blue-400 mb-2 uppercase">Xác suất Thắng Kiện</h4>
+                        <div className="flex items-center gap-4 mb-3">
+                            <div className={`text-4xl font-black ${winProbabilityAnalysis.score > 70 ? 'text-green-500' : (winProbabilityAnalysis.score > 40 ? 'text-yellow-500' : 'text-red-500')}`}>
+                                {winProbabilityAnalysis.score}%
+                            </div>
+                            <div className="text-xs text-slate-400 italic">{winProbabilityAnalysis.rationale}</div>
+                        </div>
+                        <div>
+                            <span className="text-xs font-semibold text-slate-400">Biến số (Swing Factors):</span>
+                            <ul className="list-disc list-inside text-xs text-slate-300 mt-1">
+                                {winProbabilityAnalysis.swingFactors.map((f, i) => <li key={i}>{f}</li>)}
+                            </ul>
+                        </div>
+                    </div>
+                )}
+
+                {/* Hidden Strategy */}
+                {layeredStrategy && (
+                    <div className="bg-slate-800 p-4 rounded-lg border border-slate-600">
+                        <h4 className="text-sm font-bold text-purple-400 mb-2 uppercase">Chiến lược Ẩn - Hiện</h4>
+                        <div className="space-y-3 text-sm">
+                            <div className="border-l-2 border-blue-500 pl-2">
+                                <span className="text-xs font-bold text-blue-300 block">BỀ NỔI (Công khai):</span>
+                                <ul className="list-disc list-inside text-slate-300">{layeredStrategy.surfaceStrategy.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                            </div>
+                            <div className="border-l-2 border-red-500 pl-2 bg-red-900/20 p-1 rounded-r">
+                                <span className="text-xs font-bold text-red-400 block flex items-center gap-1"><CunningLawyerIcon className="w-3 h-3"/> BỀ CHÌM (Mục tiêu thực):</span>
+                                <ul className="list-disc list-inside text-red-200 italic">{layeredStrategy.deepStrategy.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Cross Examination Plan */}
+            {crossExamPlan && crossExamPlan.length > 0 && (
+                <div className="mt-6 bg-slate-800 p-4 rounded-lg border border-slate-600">
+                    <h4 className="text-sm font-bold text-amber-400 mb-3 uppercase flex items-center gap-2">
+                        <BrainIcon className="w-4 h-4"/> Kế hoạch Thẩm vấn Chéo (Cross-Exam)
+                    </h4>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left text-slate-300">
+                            <thead className="text-slate-400 uppercase bg-slate-700/50">
+                                <tr>
+                                    <th className="px-2 py-2 rounded-tl">Đối tượng</th>
+                                    <th className="px-2 py-2">Loại câu hỏi</th>
+                                    <th className="px-2 py-2">Nội dung</th>
+                                    <th className="px-2 py-2 rounded-tr">Mục đích</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700">
+                                {crossExamPlan.map((q, i) => (
+                                    <tr key={i} className="hover:bg-slate-700/30">
+                                        <td className="px-2 py-2 font-semibold text-white">{q.target}</td>
+                                        <td className="px-2 py-2">
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${q.type === 'Leading' ? 'bg-red-900 text-red-200' : (q.type === 'Locking' ? 'bg-blue-900 text-blue-200' : 'bg-slate-600 text-slate-200')}`}>
+                                                {q.type === 'Leading' ? 'Dẫn dắt' : (q.type === 'Locking' ? 'Khóa' : q.type)}
+                                            </span>
+                                        </td>
+                                        <td className="px-2 py-2 italic text-slate-200">"{q.question}"</td>
+                                        <td className="px-2 py-2 text-amber-200/80">{q.goal}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>
@@ -500,6 +605,8 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                     Phân tích lại
                 </button>
             </div>
+            
+            {report && <WarRoomSection report={report} />}
 
             {report?.quickSummary && (
                 <ReportSection title="Tóm tắt Nhanh" headerAction={<button onClick={onClearSummary} className="px-3 py-1.5 text-xs bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200">Xóa</button>}>
@@ -656,8 +763,12 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                            <ul className="list-disc list-inside space-y-1 text-green-900">{report.caseProspects?.strengths.map((item, i) => <li key={i}><HighlightedText text={item} term={highlightTerm} /></li>)}</ul>
                         </div>
                         <div className="p-3 bg-amber-50 border-l-4 border-amber-300 rounded-r-md">
-                           <h5 className="font-semibold text-amber-800 mb-2">Điểm yếu</h5>
-                           <ul className="list-disc list-inside space-y-1 text-amber-900">{report.caseProspects?.weaknesses.map((item, i) => <li key={i}><HighlightedText text={item} term={highlightTerm} /></li>)}</ul>
+                           <h5 className="font-semibold text-amber-800 mb-2">Điểm yếu & Biện pháp Khắc phục (Cáo già)</h5>
+                           <div className="text-amber-900 space-y-2 text-sm">
+                               {report.caseProspects?.weaknesses.map((item, i) => (
+                                   <div key={i} className="mb-1"><HighlightedText text={item} term={highlightTerm} /></div>
+                               ))}
+                           </div>
                         </div>
                         <div className="p-3 bg-red-50 border-l-4 border-red-300 rounded-r-md">
                            <h5 className="font-semibold text-red-800 mb-2">Rủi ro</h5>
@@ -678,6 +789,20 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                                 <div className="text-sm text-purple-800">
                                     <CunningLawyerText text={report.proposedStrategy.psychologicalStrategy} />
                                 </div>
+                            </div>
+                        )}
+                        
+                         {report.proposedStrategy?.proceduralTactics && report.proposedStrategy.proceduralTactics.length > 0 && (
+                            <div className="p-3 bg-indigo-50 border-l-4 border-indigo-500 rounded-r-md shadow-sm">
+                                <h5 className="font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                                    <ShieldCheckIcon className="w-5 h-5" />
+                                    Chiến thuật Tố tụng & Thủ tục (Cáo già)
+                                </h5>
+                                <ul className="list-disc list-inside space-y-1 text-indigo-800 text-sm">
+                                    {report.proposedStrategy.proceduralTactics.map((tactic, i) => (
+                                        <li key={i}><HighlightedText text={tactic} term={highlightTerm} /></li>
+                                    ))}
+                                </ul>
                             </div>
                         )}
                         
