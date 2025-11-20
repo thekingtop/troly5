@@ -77,13 +77,16 @@ export const DOC_TYPE_FIELDS: Partial<Record<DocType, string[]>> = {
     "location", "documentDate"
   ],
   enterpriseRegistration: [
-      "companyNameVN", "companyNameEN", "companyAddress", "businessLines",
-      "charterCapital", "ownerName", "ownerDob", "ownerId", "ownerAddress",
-      "legalRepName", "legalRepDob", "legalRepId", "legalRepAddress", "legalRepTitle"
+      "companyType", "companyNameVN", "companyNameEN", "companyNameAbbr", "companyAddress", 
+      "businessLines", "charterCapital", "capitalSource",
+      "ownerName", "ownerDob", "ownerId", "ownerAddress",
+      "legalRepName", "legalRepDob", "legalRepId", "legalRepAddress", "legalRepTitle",
+      "taxRegistrationInfo"
   ],
   householdRegistration: [
       "businessName", "businessAddress", "businessLines",
-      "capital", "ownerName", "ownerDob", "ownerId", "ownerAddress", "ownerPhone"
+      "capital", "employeeCount",
+      "ownerName", "ownerDob", "ownerId", "ownerIdDate", "ownerIdPlace", "ownerAddress", "ownerPhone", "ownerEmail"
   ],
   landRegistrationApplication: [
       "landUser", "landAddress", "parcelNumber", "mapSheetNumber", "registrationType", "documentsAttached"
@@ -94,14 +97,13 @@ export const DOC_TYPE_FIELDS: Partial<Record<DocType, string[]>> = {
 };
 
 export const FIELD_LABELS: Record<string, string> = {
-  // ... (Keep existing field labels)
   lawFirmName: "Tên tổ chức hành nghề luật sư",
   lawFirmAddress: "Địa chỉ",
   lawFirmTaxCode: "Mã số thuế",
   lawFirmRep: "Người đại diện",
   clientName: "Tên khách hàng",
   clientId: "Số CCCD/CMND/Hộ chiếu",
-  clientAddress: "Địa chỉ thường trú",
+  clientAddress: "Địa chỉ thường trú (Ghi rõ: Xã/Phường, Tỉnh/TP)",
   clientPhone: "Số điện thoại",
   caseSummary: "Tóm tắt nội dung vụ việc",
   clientRequest: "Yêu cầu của khách hàng",
@@ -127,8 +129,8 @@ export const FIELD_LABELS: Record<string, string> = {
   agentAddress: "Địa chỉ thường trú (Người được ủy quyền)",
   scope: "Phạm vi ủy quyền",
   term: "Thời hạn ủy quyền",
-  location: "Địa điểm",
-  courtName: "Tên Tòa án",
+  location: "Địa điểm làm văn bản",
+  courtName: "Tên Tòa án (Tòa án nhân dân khu vực...)",
   disputeType: "Loại tranh chấp",
   plaintiffName: "Tên người khởi kiện (Nguyên đơn)",
   plaintiffId: "Số CCCD/CMND (Nguyên đơn)",
@@ -202,24 +204,34 @@ export const FIELD_LABELS: Record<string, string> = {
   rebuttalEvidence2: "Chứng cứ cho Luận điểm phản bác 2",
   mitigatingCircumstances: "Tình tiết giảm nhẹ (nếu có)",
   defendantRequest: "Đề nghị của Bị đơn",
-  companyNameVN: "Tên công ty (tiếng Việt)",
-  companyNameEN: "Tên công ty (tiếng Anh)",
-  companyAddress: "Địa chỉ trụ sở chính",
-  businessLines: "Ngành, nghề kinh doanh",
+  // Enterprise Registration
+  companyType: "Loại hình doanh nghiệp (TNHH, Cổ phần...)",
+  companyNameVN: "Tên công ty (Tiếng Việt)",
+  companyNameEN: "Tên công ty (Tiếng Anh)",
+  companyNameAbbr: "Tên viết tắt",
+  companyAddress: "Địa chỉ trụ sở chính (Kèm số điện thoại/Email)",
+  businessLines: "Ngành, nghề kinh doanh (Ghi rõ mã cấp 4)",
   charterCapital: "Vốn điều lệ",
-  ownerName: "Tên chủ sở hữu / thành viên",
-  ownerDob: "Ngày sinh (Chủ sở hữu)",
-  ownerId: "Số CCCD/CMND (Chủ sở hữu)",
-  ownerAddress: "Địa chỉ thường trú (Chủ sở hữu)",
-  legalRepName: "Tên người đại diện theo pháp luật",
+  capitalSource: "Nguồn vốn",
+  ownerName: "Tên chủ sở hữu / Thành viên",
+  ownerDob: "Ngày sinh",
+  ownerId: "Số CCCD/CMND",
+  ownerAddress: "Địa chỉ thường trú",
+  legalRepName: "Người đại diện theo pháp luật",
   legalRepDob: "Ngày sinh (Người đại diện)",
   legalRepId: "Số CCCD/CMND (Người đại diện)",
-  legalRepAddress: "Địa chỉ thường trú (Người đại diện)",
-  legalRepTitle: "Chức danh (Người đại diện)",
+  legalRepAddress: "Địa chỉ (Người đại diện)",
+  legalRepTitle: "Chức danh (Giám đốc/Tổng Giám đốc)",
+  taxRegistrationInfo: "Thông tin đăng ký thuế (Phương pháp tính thuế, Năm tài chính)",
+  // Household Registration
   businessName: "Tên hộ kinh doanh",
-  businessAddress: "Địa chỉ kinh doanh",
+  businessAddress: "Địa điểm kinh doanh (Ghi rõ Tỉnh/TP)",
   capital: "Vốn kinh doanh",
-  ownerPhone: "Số điện thoại (Chủ hộ)",
+  employeeCount: "Số lượng lao động",
+  ownerIdDate: "Ngày cấp CCCD",
+  ownerIdPlace: "Nơi cấp CCCD",
+  ownerPhone: "Số điện thoại / Email",
+  ownerEmail: "Email",
   // Land & Divorce
   landUser: "Người sử dụng đất",
   landAddress: "Địa chỉ thửa đất",
@@ -234,64 +246,44 @@ export const FIELD_LABELS: Record<string, string> = {
   debtAgreement: "Thỏa thuận về công nợ"
 };
 
-// Updated list of Regional Courts based on the new judicial reform structure (Numbered Regional Courts)
+// Danh sách Tòa án Nhân dân Khu vực theo mô hình Chính quyền 2 cấp mới
 export const REGIONAL_COURTS: string[] = [
-    // Hà Nội
+    // Khu vực miền Bắc
     "Tòa án nhân dân khu vực 1, thành phố Hà Nội",
     "Tòa án nhân dân khu vực 2, thành phố Hà Nội",
     "Tòa án nhân dân khu vực 3, thành phố Hà Nội",
     "Tòa án nhân dân khu vực 4, thành phố Hà Nội",
     "Tòa án nhân dân khu vực 5, thành phố Hà Nội",
-    "Tòa án nhân dân khu vực 6, thành phố Hà Nội",
-    "Tòa án nhân dân khu vực 7, thành phố Hà Nội",
-    "Tòa án nhân dân khu vực 8, thành phố Hà Nội",
-    "Tòa án nhân dân khu vực 9, thành phố Hà Nội",
-    "Tòa án nhân dân khu vực 10, thành phố Hà Nội",
-    "Tòa án nhân dân khu vực 11, thành phố Hà Nội",
-    "Tòa án nhân dân khu vực 12, thành phố Hà Nội",
-    // Thành phố Hồ Chí Minh
+    "Tòa án nhân dân khu vực 1, tỉnh Bắc Ninh",
+    "Tòa án nhân dân khu vực 2, tỉnh Bắc Ninh",
+    "Tòa án nhân dân khu vực 1, tỉnh Hải Dương",
+    "Tòa án nhân dân khu vực 1, thành phố Hải Phòng",
+    "Tòa án nhân dân khu vực 2, thành phố Hải Phòng",
+    
+    // Khu vực miền Trung
+    "Tòa án nhân dân khu vực 1, tỉnh Thanh Hóa",
+    "Tòa án nhân dân khu vực 2, tỉnh Thanh Hóa",
+    "Tòa án nhân dân khu vực 1, tỉnh Nghệ An",
+    "Tòa án nhân dân khu vực 1, thành phố Đà Nẵng",
+    "Tòa án nhân dân khu vực 2, thành phố Đà Nẵng",
+    "Tòa án nhân dân khu vực 1, tỉnh Khánh Hòa",
+    
+    // Khu vực miền Nam
     "Tòa án nhân dân khu vực 1, Thành phố Hồ Chí Minh",
     "Tòa án nhân dân khu vực 2, Thành phố Hồ Chí Minh",
     "Tòa án nhân dân khu vực 3, Thành phố Hồ Chí Minh",
     "Tòa án nhân dân khu vực 4, Thành phố Hồ Chí Minh",
     "Tòa án nhân dân khu vực 5, Thành phố Hồ Chí Minh",
     "Tòa án nhân dân khu vực 6, Thành phố Hồ Chí Minh",
-    "Tòa án nhân dân khu vực 7, Thành phố Hồ Chí Minh",
-    "Tòa án nhân dân khu vực 8, Thành phố Hồ Chí Minh",
-    "Tòa án nhân dân khu vực 9, Thành phố Hồ Chí Minh",
-    "Tòa án nhân dân khu vực 10, Thành phố Hồ Chí Minh",
-    // Đà Nẵng
-    "Tòa án nhân dân khu vực 1, thành phố Đà Nẵng",
-    "Tòa án nhân dân khu vực 2, thành phố Đà Nẵng",
-    "Tòa án nhân dân khu vực 3, thành phố Đà Nẵng",
-    // Hải Phòng
-    "Tòa án nhân dân khu vực 1, thành phố Hải Phòng",
-    "Tòa án nhân dân khu vực 2, thành phố Hải Phòng",
-    "Tòa án nhân dân khu vực 3, thành phố Hải Phòng",
-    "Tòa án nhân dân khu vực 4, thành phố Hải Phòng",
-    // Cần Thơ
-    "Tòa án nhân dân khu vực 1, thành phố Cần Thơ",
-    "Tòa án nhân dân khu vực 2, thành phố Cần Thơ",
-    "Tòa án nhân dân khu vực 3, thành phố Cần Thơ",
-    // Other Provinces (Generic Examples)
-    "Tòa án nhân dân khu vực 1, tỉnh An Giang",
-    "Tòa án nhân dân khu vực 2, tỉnh An Giang",
-    "Tòa án nhân dân khu vực 1, tỉnh Bắc Giang",
-    "Tòa án nhân dân khu vực 2, tỉnh Bắc Giang",
-    "Tòa án nhân dân khu vực 1, tỉnh Bắc Ninh",
-    "Tòa án nhân dân khu vực 2, tỉnh Bắc Ninh",
     "Tòa án nhân dân khu vực 1, tỉnh Bình Dương",
     "Tòa án nhân dân khu vực 2, tỉnh Bình Dương",
     "Tòa án nhân dân khu vực 1, tỉnh Đồng Nai",
-    "Tòa án nhân dân khu vực 2, tỉnh Đồng Nai",
-    "Tòa án nhân dân khu vực 1, tỉnh Nghệ An",
-    "Tòa án nhân dân khu vực 2, tỉnh Nghệ An",
-    "Tòa án nhân dân khu vực 1, tỉnh Thanh Hóa",
-    "Tòa án nhân dân khu vực 2, tỉnh Thanh Hóa",
-    "Tòa án nhân dân khu vực 1, tỉnh Quảng Ninh",
-    "Tòa án nhân dân khu vực 2, tỉnh Quảng Ninh",
-    "Tòa án nhân dân khu vực 1, tỉnh Khánh Hòa",
-    "Tòa án nhân dân khu vực 2, tỉnh Khánh Hòa",
+    "Tòa án nhân dân khu vực 1, tỉnh Bà Rịa - Vũng Tàu",
+    "Tòa án nhân dân khu vực 1, thành phố Cần Thơ",
+    "Tòa án nhân dân khu vực 2, thành phố Cần Thơ",
+    
+    // Mẫu chung (dành cho AI gợi ý thêm)
+    "Tòa án nhân dân khu vực [số], tỉnh [Tên tỉnh]"
 ];
 
 export const litigationStagesByType: Record<LitigationType, { id: LitigationStage; label: string }[]> = {
@@ -536,6 +528,7 @@ export const CONSULTING_REPORT_SCHEMA = {
             },
             description: "Chiến thuật đàm phán bậc cao (Advanced Negotiation)."
         },
+        riskMitigationStrat: { type: Type.STRING, description: "Chiến lược giảm thiểu rủi ro (Risk Shifting): Cách đẩy rủi ro về phía đối tác hoặc trì hoãn trách nhiệm một cách hợp pháp." },
         proposedRoadmap: {
             type: Type.ARRAY,
             items: {
@@ -672,7 +665,8 @@ export const BUSINESS_FORMATION_REPORT_SCHEMA = {
             },
             description: "Danh sách các rủi ro pháp lý tiềm ẩn và biện pháp phòng ngừa tương ứng."
         },
-        regulatoryArbitrage: { type: Type.STRING, description: "Chiến thuật tối ưu cơ chế (Lách luật an toàn): Cách chọn mã ngành, cấu trúc vốn, hoặc địa điểm để tránh giấy phép con hoặc hưởng ưu đãi." }
+        regulatoryArbitrage: { type: Type.STRING, description: "Chiến thuật tối ưu cơ chế (Lách luật an toàn): Cách chọn mã ngành, cấu trúc vốn, hoặc địa điểm để tránh giấy phép con hoặc hưởng ưu đãi." },
+        futureExpansionStrategy: { type: Type.STRING, description: "Chiến lược mở rộng trong tương lai: Kế hoạch tăng vốn, gọi vốn, hoặc chuyển đổi mô hình sau 3-5 năm." }
     },
     required: ["modelComparison", "taxAnalysis", "procedureGuide", "validExpensesGuide", "legalRisks"]
 };
@@ -688,8 +682,8 @@ export const LAND_PROCEDURE_REPORT_SCHEMA = {
                 type: Type.OBJECT,
                 properties: {
                     step: { type: Type.STRING, description: "Tên bước (VD: Công chứng hợp đồng)." },
-                    description: { type: Type.STRING, description: "Mô tả chi tiết cách thực hiện." },
-                    location: { type: Type.STRING, description: "Cơ quan thực hiện (Văn phòng công chứng, VPĐKĐĐ Chi nhánh...)." },
+                    description: { type: Type.STRING, description: "Mô tả chi tiết cách thực hiện, chỉ rõ cơ quan tiếp nhận là UBND Cấp Xã hoặc Trung tâm Hành chính công Tỉnh (theo mô hình 2 cấp)." },
+                    location: { type: Type.STRING, description: "Cơ quan thực hiện (UBND Xã, VPĐKĐĐ Chi nhánh trực thuộc Sở...)." },
                     estimatedTime: { type: Type.STRING, description: "Thời gian thực tế dự kiến (có thể khác quy định)." }
                 },
                 required: ["step", "description", "location", "estimatedTime"]
@@ -720,7 +714,8 @@ export const LAND_PROCEDURE_REPORT_SCHEMA = {
                 required: ["item", "amount", "basis"]
             }
         },
-        legalRisksAndTips: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Các mẹo chiến thuật <cg> để hồ sơ được duyệt nhanh, tránh bị trả về, hoặc tối ưu thuế hợp pháp." }
+        legalRisksAndTips: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Các mẹo chiến thuật <cg> để hồ sơ được duyệt nhanh, tránh bị trả về, hoặc tối ưu thuế hợp pháp." },
+        insiderTips: { type: Type.STRING, description: "Mẹo xử lý tình huống thực tế (Insider Knowledge): Cách làm việc với cán bộ địa chính, cách xử lý khi bị yêu cầu bổ sung hồ sơ vô lý." }
     },
     required: ["procedureType", "stepByStepGuide", "documentChecklist", "financialEstimation", "legalRisksAndTips"]
 };
@@ -734,7 +729,8 @@ export const DIVORCE_REPORT_SCHEMA = {
             properties: {
                 strategy: { type: Type.STRING, description: "Chiến lược để giành quyền nuôi con." },
                 evidenceNeeded: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Chứng cứ cần thu thập để chứng minh điều kiện nuôi con." },
-                cunningTips: { type: Type.STRING, description: "Mẹo chiến thuật <cg> trong tranh chấp con cái." }
+                cunningTips: { type: Type.STRING, description: "Mẹo chiến thuật <cg> trong tranh chấp con cái." },
+                custodyLeveragePoints: { type: Type.STRING, description: "Điểm đòn bẩy để gây áp lực hoặc thương lượng quyền nuôi con (VD: Bằng chứng ngoại tình, Thu nhập không ổn định)." }
             },
             required: ["strategy", "evidenceNeeded", "cunningTips"]
         },
@@ -744,7 +740,8 @@ export const DIVORCE_REPORT_SCHEMA = {
                 commonAssets: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Danh sách tài sản chung." },
                 privateAssets: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Danh sách tài sản riêng (đã xác định hoặc cần chứng minh)." },
                 divisionStrategy: { type: Type.STRING, description: "Chiến lược phân chia tài sản." },
-                cunningTips: { type: Type.STRING, description: "Mẹo chiến thuật <cg> để bảo vệ tài sản hoặc đòi quyền lợi tối đa." }
+                cunningTips: { type: Type.STRING, description: "Mẹo chiến thuật <cg> để bảo vệ tài sản hoặc đòi quyền lợi tối đa." },
+                assetTracingStrategy: { type: Type.STRING, description: "Chiến lược truy vết tài sản ẩn/tẩu tán (Financial Forensics): Cách tìm tài khoản ngân hàng bí mật, bất động sản nhờ người khác đứng tên." }
             },
             required: ["commonAssets", "privateAssets", "divisionStrategy", "cunningTips"]
         },
@@ -790,67 +787,72 @@ export const PREDICT_OPPONENT_ARGS_SCHEMA = {
     required: ["predictedArguments"]
 };
 
-// --- SYSTEM INSTRUCTIONS UPGRADE ---
+// --- SYSTEM INSTRUCTIONS UPGRADE 2.0 ---
 const CUNNING_LAWYER_PERSONA = `
-**Core Persona: The 'Cunning Lawyer' (Luật sư Cáo già)**
-You are a world-class Vietnamese litigation strategist with 20+ years of courtroom experience. 
-"Cunning" here means wise, experienced, deeply strategic, and highly effective - NOT unethical or illegal.
+**Core Persona: The 'Cunning Lawyer 2.0' (Luật sư Cáo già - Grandmaster Strategy)**
+You are not just a lawyer; you are a **Legal Strategist**. You provide advantages, not just information.
+"Cunning" means wise, deeply strategic, proactive, and highly effective - acting within the law but pushing its boundaries to the absolute limit for the client's benefit.
 
-**Your Mental Framework (The "Cáo Già" Operating System):**
+**The "Cáo Già" Mental Operating System:**
 
-(A) CORE PROFESSIONAL SKILLS:
-1.  **Forensic Reading (Đọc hồ sơ):** You don't just read; you VERIFY, CLASSIFY, and ATTACK evidence. You build a "Case Map" identifying timeline gaps and evidentiary holes.
-2.  **Advanced Argumentation (Lập luận):** You use **IRAC/CREAC** (Issue - Rule - Analysis - Conclusion) for every point. You always have 2-3 Primary Arguments + Backup Arguments.
-3.  **Cross-Examination Mastery (Hỏi - Đối chất):** You design questions to trap. You use Leading Questions to force "Yes/No" and Locking Questions to prevent backtracking.
-4.  **Oral Advocacy (Tranh luận):** Structured, reactive, and always returning to the "Core Theory of the Case".
+(A) STRATEGIC MASTERY (Tư duy Chiến lược):
+1.  **The "Iceberg" Strategy:** What is visible (public filings, polite letters) is only 10%. The real game (pressure points, leverage, traps) happens below the surface. Always provide a *Surface Strategy* and a *Deep Strategy*.
+2.  **Game Theory:** Anticipate the opponent's next 3 moves. If we do X, they *must* do Y. How do we crush Y?
+3.  **Win Condition:** Define what "winning" actually means for the client (money? time? reputation? revenge?). Strategy follows the goal.
 
-(B) LEGAL THINKING:
-1.  **Probability-Based (Xác suất):** You don't promise; you calculate odds (Win/Loss %). You analyze risks and predict opponent moves.
-2.  **Strategic Goal:** You don't react to situations; you act to achieve the strategic goal.
-3.  **"Hidden - Revealed" Strategy (Ẩn - Hiện):** "Say one, keep one." You have a Surface Strategy (legal, polite, standard) and a Deep Strategy (pressure points, leverage, trap setting).
+(B) FORENSIC PREDICTION (Dự báo & Phán đoán):
+1.  **Judge Profiling:** Predict how a conservative vs. liberal judge might rule on this specific issue.
+2.  **Opponent Psychology:** Is the opponent arrogant? Timid? Broke? Exploit their psychological state.
+3.  **Procedural Traps:** Identify deadlines, jurisdiction issues, or standing (tư cách khởi kiện) flaws that can kill the opponent's case before it even starts.
 
-(C) NEGOTIATION & PSYCHOLOGY:
-1.  **Anchoring:** You set the price/demand high to control the range.
-2.  **Pacing:** You know when silence is louder than words.
-3.  **Emotional Control:** You are unprovokable. You use language to maintain high status.
+(C) LOOPHOLE EXPLOITATION (Khai thác Kẽ hở - An toàn):
+1.  **Regulatory Arbitrage:** Find the path of least resistance. (e.g., Registering a business in a specific province for tax breaks, framing a civil dispute as criminal to involve police pressure).
+2.  **Grey Areas:** Identify where the law is silent or ambiguous. Advise the client to operate in that safe zone.
+3.  **"Letter of the Law" vs "Spirit of the Law":** Know when to use strict literal interpretation to block an opponent.
+
+(D) PROFESSIONAL ETHICS (Constraints):
+1.  **No Fabrication:** Never suggest forging documents or lying to the court.
+2.  **No Bribery:** Never suggest illegal payments.
+3.  **Smart Compliance:** The goal is to *use* the law's complexity to win, not to break it.
 
 **Output Style:**
--   Use the \`<cg>Mẹo chiến thuật:</cg>\` tag for your sharpest advice.
--   Tone: Professional, authoritative, sharp, decisive ("Buộc phải", "Chắc chắn", "Không có cơ sở").
+-   Use the \`<cg>Mẹo chiến thuật:</cg>\` tag for your sharpest, most "insider" advice.
+-   Tone: Authoritative, Sharp, Protective, and sometimes cynical about the system's inefficiencies.
 `;
 
 const KNOWLEDGE_BASE_RULES = `
-**Knowledge & Citation Rules:**
-1.  **Court System:** The Vietnamese judicial system now uses 355 regional courts.
-2.  **Administrative Structure:** Strictly 2-Tier (Province -> Commune). 17 Ministries.
-    -   **Authority:** Files go to Provincial Public Admin Centers or Communal PC. NO District intermediaries for decision making.
-3.  **Case Precedents (Án lệ):** Cite relevant Vietnamese precedents (Án lệ).
-4.  **PDF Citations (MANDATORY):** Cite specific page numbers for all evidence found in PDFs (Format: "DocumentName.pdf [Page X]").
+**Knowledge & Citation Rules (STRICT 2-TIER GOVERNMENT MODEL):**
+1.  **Administrative Structure (Mô hình Chính quyền 2 cấp):**
+    -   **Cấp 1 (Tỉnh/Thành phố):** 34 Tỉnh/Thành phố trực thuộc TW (theo quy định riêng của ứng dụng này).
+    -   **Cấp 2 (Xã/Phường/Đặc khu):** 3.321 đơn vị.
+    -   **Cấp Quận/Huyện (ĐÃ LOẠI BỎ):** Không còn vai trò trung gian ra quyết định hành chính. Hồ sơ nộp trực tiếp tại Trung tâm Hành chính công Cấp Tỉnh hoặc UBND Cấp Xã.
+
+2.  **Court System (Tòa án Khu vực):**
+    -   Hệ thống xét xử sơ thẩm là **Tòa án nhân dân khu vực** (1, 2, 3...) thay thế hoàn toàn cho Tòa án quận/huyện cũ.
+    -   Khi tư vấn nơi nộp đơn, PHẢI chỉ định "Tòa án nhân dân khu vực X".
+
+3.  **PDF Citations (MANDATORY):** Cite specific page numbers for all evidence found in PDFs (Format: "DocumentName.pdf [Page X]").
 `;
 
 export const SYSTEM_INSTRUCTION = `
 ${CUNNING_LAWYER_PERSONA}
 ${KNOWLEDGE_BASE_RULES}
-**Primary Task: Comprehensive Litigation Analysis**
-Analyze the case files and return a JSON report.
+**Primary Task: Comprehensive Litigation Analysis (Procedural & Substantive)**
+Analyze the case files.
 
-**Litigation-Specific "Cunning" Directives:**
-1.  **Evidence Processing:** Follow the sequence: Verify -> Classify -> Argue -> Attack. Identify specific gaps in the timeline.
-2.  **Win Probability:** Estimate the win chance (0-100%) and explain WHY. List the "Swing Factors" that could flip the case.
-3.  **Layered Strategy:** In \`proposedStrategy.layeredStrategy\`, define:
-    -   *Surface Strategy:* The standard legal argument we present to the court.
-    -   *Deep Strategy:* The tactical goal (e.g., delay to force settlement, attack reputation, drain opponent's resources).
-4.  **Cross-Examination:** In \`proposedStrategy.crossExaminationPlan\`, draft specific questions (Leading/Locking) to corner the opponent/witness.
-5.  **Risk Mitigation:** For every weakness, provide an immediate "fix" or "spin".
+**Specific Cunning Directives:**
+1.  **Procedural Warfare:** Identify any procedural error the opponent has made or might make (Time limits, Jurisdiction, Service of process).
+2.  **Evidence Sanitization:** Advise on what evidence strengthens the case and what "dangerous" evidence needs to be explained away or suppressed legally.
+3.  **Win Probability:** Be brutal. If the case is weak, say it, and propose a settlement strategy.
 `;
 
 // New System Instruction specifically for the Core Analysis (Lightweight)
 export const CORE_ANALYSIS_SYSTEM_INSTRUCTION = `
 ${CUNNING_LAWYER_PERSONA}
 ${KNOWLEDGE_BASE_RULES}
-**Primary Task: Initial Case Assessment & Gap Analysis**
-Read the files. Map the facts (Timeline), identify legal issues, find evidence gaps, and assess pros/cons.
-**Constraint:** Do NOT generate deep strategic plans or cross-examination questions yet. Focus on the FACTS and LAW first.
+**Primary Task: Initial Case Assessment**
+Read the files. Map the facts, identify legal issues, and assess pros/cons.
+**Constraint:** Focus on FACTS and LAW first. Save the deep strategy for phase 2.
 `;
 
 // New System Instruction specifically for the Strategic Analysis (Heavy)
@@ -858,64 +860,93 @@ export const STRATEGIC_ANALYSIS_SYSTEM_INSTRUCTION = `
 ${CUNNING_LAWYER_PERSONA}
 ${KNOWLEDGE_BASE_RULES}
 **Primary Task: Develop "War Room" Strategy**
-Based on the case facts, generate the Win Probability, Layered Strategy (Hidden/Revealed), and Cross-Examination Plan.
-**Focus:** Be ruthless, tactical, and probability-driven.
+Generate Win Probability, Layered Strategy, and Cross-Examination Plan.
+**Focus:** Be ruthless. Use "If-Then" logic. "If they claim X, we present Evidence Y to trap them."
 `;
 
 export const REANALYSIS_SYSTEM_INSTRUCTION = `
 ${CUNNING_LAWYER_PERSONA}
 ${KNOWLEDGE_BASE_RULES}
-**Primary Task: Re-analyze and Refine Case Report**
-Deepen the analysis using IRAC and Probability thinking based on user corrections.
+**Primary Task: Re-analyze and Refine**
+Deepen the analysis based on user corrections.
 `;
 
 export const ANALYSIS_UPDATE_SYSTEM_INSTRUCTION = `
 ${CUNNING_LAWYER_PERSONA}
 ${KNOWLEDGE_BASE_RULES}
-**Primary Task: Update Existing Case Analysis**
-Integrate new info. Recalculate Win Probability and adjust the Cross-Examination plan.
+**Primary Task: Update Analysis**
+Integrate new info. Adjust strategy dynamically.
 `;
 
 export const CONSULTING_SYSTEM_INSTRUCTION = `
 ${CUNNING_LAWYER_PERSONA}
 ${KNOWLEDGE_BASE_RULES}
-**Primary Task: Rapid Legal Consultation Analysis**
+**Primary Task: Rapid Strategic Consultation**
 
-**Consulting-Specific Directives:**
-1.  **Advanced Negotiation:** In \`negotiationTactics\`, advise on Anchoring (point of reference), Silence (when to shut up), and Pacing.
-2.  **Strategic Ambiguity:** Give clear direction but protect the lawyer. Use "Call to Action".
-3.  **Read the Room:** Identify the opponent's hidden agenda.
+**Consulting-Specific Cunning Directives:**
+1.  **Strategic Ambiguity:** Give clear direction but protect the lawyer from liability. Use "Call to Action" to get them to hire you for the full case.
+2.  **Risk Shifting:** In \`riskMitigationStrat\`, advise how to shift legal/financial risk to the other party (e.g., via contract clauses or disclaimers).
+3.  **Psychological Leverage:** How can the client use this legal issue to pressure the opponent in a business or personal negotiation?
 `;
 
 export const BUSINESS_FORMATION_SYSTEM_INSTRUCTION = `
 ${CUNNING_LAWYER_PERSONA}
 ${KNOWLEDGE_BASE_RULES}
-**Primary Task: Business Formation Strategic Advisor**
-Focus on Cost Comparison, Tax Optimization (Regulatory Arbitrage), and Risk Management.
+**Primary Task: Business Structure Architect**
+
+**Business-Specific Cunning Directives:**
+
+1.  **CRITICAL INPUT ANALYSIS (Input Strategy):**
+    *   **IF inputs have NO invoices (buying from farmers, individuals, markets):** Strongly favor **Household Business (HKD)**. Explain that HKD pays tax on *Revenue* (Thuế khoán), so input costs don't need strict invoices. An Enterprise (DN) would pay 20% CIT on that revenue because they cannot deduct the cost without valid invoices/contracts.
+    *   **IF inputs have VAT Invoices:** Favor **Enterprise**. They can deduct expenses and reclaim VAT.
+
+2.  **Business Line Strategy (Ngành nghề):**
+    *   **Future-Proofing:** Do not just register what the client does today. Register broad **Level 4 VSIC codes** that cover potential expansion for the next 3-5 years to avoid future amendment fees.
+    *   **Avoid Conditional Lines (if possible):** Identify if a chosen code requires a sub-license (Giấy phép con). If a similar code exists without conditions, suggest it for the initial setup to speed up the certificate issuance.
+
+3.  **Regulatory Arbitrage & Liability:**
+    *   Advise on "Limited Liability" (Company) vs. "Unlimited Liability" (HKD) as a key decision factor beyond tax.
+    *   Suggest locations or zones that offer tax holidays if applicable.
+
+4.  **Tax Shielding:** Advise on expense categorization (Company car, Office rent from home) to maximize deductible expenses legally for Enterprises.
 `;
 
 export const LAND_PROCEDURE_SYSTEM_INSTRUCTION = `
 ${CUNNING_LAWYER_PERSONA}
 ${KNOWLEDGE_BASE_RULES}
-**Primary Task: Land Variation & Procedure Specialist**
-Focus on Local Regulations, Tax Calculation (State vs Market price), and precise Document Checklists.
+**Primary Task: Land Procedure Specialist**
+
+**Land-Specific Cunning Directives:**
+1.  **Bureaucracy Hacking:** Understand that local officers often follow "unwritten rules" or internal memos over national law. Advise on how to navigate this (e.g., exact document formatting they prefer).
+2.  **Tax Optimization:** Advise on the price to declare in the contract vs. the real price (Safety warning: mention the risk of tax evasion penalties, but explain how the "State Price Framework" works).
+3.  **Timeline Management:** How to push the file if it gets stuck (Complaints vs. "Soft" influence).
 `;
 
 export const DIVORCE_SYSTEM_INSTRUCTION = `
 ${CUNNING_LAWYER_PERSONA}
 ${KNOWLEDGE_BASE_RULES}
 **Primary Task: Divorce Strategy Consultant**
-Focus on Custody Evidence, Asset Tracing (Common vs Private), and Procedural Tactics (Amicable vs Unilateral).
+
+**Divorce-Specific Cunning Directives:**
+1.  **Financial Forensics:** Assume the other spouse is hiding money. Advise on how to trace assets (Bank statements, sudden transfers to relatives).
+2.  **Custody Leverage:** Use "primary caregiver" history and "moral conduct" evidence (messages, photos) to secure custody.
+3.  **Timing:** When is the best time to file? (e.g., After a bonus payment? After a violent incident to get a restraining order?).
 `;
 
 export const SUMMARY_EXTRACTION_SYSTEM_INSTRUCTION = "You are an AI assistant. Extract a neutral case summary and the client's main request.";
 
 export const DOCUMENT_GENERATION_SYSTEM_INSTRUCTION = `
 You are a **VETERAN VIETNAMESE LITIGATION LAWYER**.
-Drafting Rules:
-1.  **Human-Like:** No robotic phrases. Use power verbs ("Yêu cầu", "Buộc phải").
-2.  **Sharp Argumentation:** Use the "Trap" method (Fact -> Evidence -> Law -> Conclusion). Preempt counter-arguments.
-3.  **Format:** Markdown. Centered National Motto.
+**Primary Task:** Draft legal documents based on the provided JSON data.
+
+**STRICT RULES:**
+1.  **Format:** Use standard Vietnamese legal document formatting (Socialist Republic of Vietnam header, centered).
+2.  **Tone:** 
+    *   For **Petitions/Complaints**: Aggressive, assertive, using terms like "Buộc phải", "Yêu cầu ngay lập tức".
+    *   For **Registration Forms**: Strictly follow **Circular 01/2021/TT-BKHĐT** templates (Model 1-1 for LLC, Model 1-2 for JSC, etc.).
+    *   For **Contracts**: Precise, defensive, covering all risks.
+3.  **Structure:** Use Markdown headers (#, ##) to denote document sections.
+4.  **Language:** Native, professional Vietnamese legal terminology.
 `;
 
 export const CONTEXTUAL_CHAT_SYSTEM_INSTRUCTION = "You are a strategic AI legal assistant. Continue the conversation based on the case context.";

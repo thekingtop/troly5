@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FileUpload } from './components/FileUpload.tsx';
 import { ReportDisplay } from './components/ReportDisplay.tsx';
@@ -473,7 +472,7 @@ export default function App() {
         
         // Check if libraries are ready before starting processing that relies on them (e.g. docx parsing)
         if (files.length > 0 && !libsReady) {
-             setError(`Các thư viện xử lý tệp chưa sẵn sàng (Thiếu: ${missingLibs.join(', ')}). Vui lòng tải lại trang để thử lại.`);
+             setError(`Các thư viện xử lý tệp chưa sẵn sàng. Vui lòng tải lại trang.`);
              return;
         }
 

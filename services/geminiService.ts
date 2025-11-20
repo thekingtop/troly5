@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type {
   AnalysisReport, UploadedFile, FileCategory, ApplicableLaw,
@@ -99,6 +100,56 @@ const handleGeminiError = (error: any, action: string) => {
     return new Error(`Lỗi không xác định khi ${action}.`);
 };
 
+// --- NEW: Image Compression Helper ---
+const compressImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            img.src = e.target?.result as string;
+        };
+        reader.onerror = (err) => reject(err);
+
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Resize logic: Max dimension 1536px (Good balance for AI readability vs size)
+            const MAX_DIMENSION = 1536;
+            if (width > height) {
+                if (width > MAX_DIMENSION) {
+                    height *= MAX_DIMENSION / width;
+                    width = MAX_DIMENSION;
+                }
+            } else {
+                if (height > MAX_DIMENSION) {
+                    width *= MAX_DIMENSION / height;
+                    height = MAX_DIMENSION;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                reject(new Error("Could not get canvas context"));
+                return;
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Convert to JPEG with 0.7 quality (Significant size reduction)
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(dataUrl.split(',')[1]); // Return base64 part only
+        };
+        
+        img.onerror = (err) => reject(new Error("Failed to load image for compression"));
+        
+        // Trigger reader
+        reader.readAsDataURL(file);
+    });
+};
+
 const fileToPart = async (file: UploadedFile) => {
     const fileType = file.file.type;
     const fileName = file.file.name;
@@ -145,9 +196,35 @@ const fileToPart = async (file: UploadedFile) => {
         }
     }
 
-    // 4. Handle Supported Binary Types (Images & PDF) for Inline Data
-    // Gemini supports: image/png, image/jpeg, image/webp, image/heic, image/heif, application/pdf
-    if (fileType.startsWith('image/') || fileType === 'application/pdf') {
+    // 4. Handle Images WITH COMPRESSION (Fixes 400 INVALID_ARGUMENT)
+    if (fileType.startsWith('image/')) {
+        try {
+            const base64 = await compressImage(file.file);
+            return {
+                inlineData: {
+                    data: base64,
+                    mimeType: 'image/jpeg' // Output of compressImage is always jpeg
+                }
+            };
+        } catch (e) {
+            console.error("Error compressing image", e);
+             // Fallback to raw if compression fails (rare)
+             try {
+                const base64 = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file.file);
+                    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+                    reader.onerror = reject;
+                });
+                return { inlineData: { data: base64, mimeType: fileType } };
+             } catch (err) {
+                 return { text: `[Error processing image: ${fileName}]` };
+             }
+        }
+    }
+
+    // 5. Handle PDF (Send as inlineData)
+    if (fileType === 'application/pdf') {
         try {
             const base64 = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
@@ -167,12 +244,12 @@ const fileToPart = async (file: UploadedFile) => {
                 }
             };
         } catch (e) {
-            console.error("Error reading binary file", e);
-            return { text: `[Error processing file: ${fileName}]` };
+            console.error("Error reading PDF", e);
+            return { text: `[Error processing PDF: ${fileName}]` };
         }
     }
 
-    // 5. Fallback for unsupported types
+    // 6. Fallback for unsupported types
     console.warn(`Unsupported file type: ${fileType}`);
     // Return a text warning so the prompt isn't empty, but don't crash the request
     return { text: `[Warning: File "${fileName}" has an unsupported type (${fileType}) and was skipped from analysis.]` };
@@ -322,8 +399,7 @@ export const intelligentSearchQuery = async (report: AnalysisReport, files: Uplo
         Question: ${query}
         `;
 
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+        const response = await generateContentWithRetry("gemini-2.5-flash", {
             contents: { parts: [...fileParts, { text: prompt }] }, // Include files for grounding
             config: {
                 systemInstruction: INTELLIGENT_SEARCH_SYSTEM_INSTRUCTION
@@ -344,8 +420,8 @@ export const continueLitigationChat = async (report: AnalysisReport, history: Ch
         User Message: ${message}
         `;
         
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+        // Use generateContentWithRetry for stability
+        const response = await generateContentWithRetry("gemini-2.5-flash", {
             contents: { parts: [...fileParts, { text: prompt }] },
             config: {
                 systemInstruction: LITIGATION_CHAT_UPDATE_SYSTEM_INSTRUCTION
@@ -536,8 +612,9 @@ export const continueConsultingChat = async (report: ConsultingReport, history: 
          Report: ${JSON.stringify(report)}
          Message: ${message}
          `;
-         const response = await ai.models.generateContent({
-             model: "gemini-2.5-flash",
+         
+         // Use generateContentWithRetry for stability
+         const response = await generateContentWithRetry("gemini-2.5-flash", {
              contents: { parts: [...fileParts, { text: prompt }] },
              config: { systemInstruction: CONSULTING_CHAT_UPDATE_SYSTEM_INSTRUCTION }
          });
@@ -578,8 +655,9 @@ export const continueBusinessFormationChat = async (report: BusinessFormationRep
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Report: ${JSON.stringify(report)}. Message: ${message}`;
-        const response = await ai.models.generateContent({
-             model: "gemini-2.5-flash",
+        
+        // Use generateContentWithRetry for stability
+        const response = await generateContentWithRetry("gemini-2.5-flash", {
              contents: { parts: [...fileParts, { text: prompt }] },
              config: { systemInstruction: BUSINESS_FORMATION_CHAT_UPDATE_SYSTEM_INSTRUCTION }
         });
@@ -668,8 +746,9 @@ export const continueLandChat = async (report: LandProcedureReport, history: Cha
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Report: ${JSON.stringify(report)}. Message: ${message}`;
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+        
+        // Use generateContentWithRetry for stability
+        const response = await generateContentWithRetry("gemini-2.5-flash", {
             contents: { parts: [...fileParts, { text: prompt }] },
             config: { systemInstruction: LAND_PROCEDURE_CHAT_UPDATE_SYSTEM_INSTRUCTION }
         });
@@ -690,8 +769,9 @@ export const continueDivorceChat = async (report: DivorceReport, history: ChatMe
      try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Report: ${JSON.stringify(report)}. Message: ${message}`;
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+        
+        // Use generateContentWithRetry for stability
+        const response = await generateContentWithRetry("gemini-2.5-flash", {
             contents: { parts: [...fileParts, { text: prompt }] },
             config: { systemInstruction: DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION }
         });
@@ -743,8 +823,9 @@ export const predictOpponentArguments = async (report: AnalysisReport, files: Up
      try {
          const fileParts = await Promise.all(files.map(fileToPart));
          const prompt = `Predict opponent arguments based on report: ${JSON.stringify(report)}`;
-         const response = await ai.models.generateContent({
-             model: "gemini-2.5-flash",
+         
+         // Use generateContentWithRetry for stability
+         const response = await generateContentWithRetry("gemini-2.5-flash", {
              contents: { parts: [...fileParts, { text: prompt }] },
              config: {
                  systemInstruction: PREDICT_OPPONENT_ARGS_SYSTEM_INSTRUCTION,
@@ -763,8 +844,9 @@ export const analyzeOpponentArguments = async (report: AnalysisReport, files: Up
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
         const prompt = `Analyze opponent arguments: ${opponentArgs}. Report: ${JSON.stringify(report)}`;
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+        
+        // Use generateContentWithRetry for stability
+        const response = await generateContentWithRetry("gemini-2.5-flash", {
             contents: { parts: [...fileParts, { text: prompt }] },
              config: {
                  systemInstruction: OPPONENT_ANALYSIS_SYSTEM_INSTRUCTION,

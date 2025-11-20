@@ -1,4 +1,5 @@
 
+
 export type FileCategory = 'Uncategorized' | 'Contract' | 'Correspondence' | 'Minutes' | 'Evidence' | 'Image';
 
 export interface UploadedFile {
@@ -209,12 +210,13 @@ export interface ConsultingReport {
         outcome: string;
     }[];
     nextActions?: string[];
-    negotiationLeverage?: string;
+    negotiationLeverage?: string; // Strategic field
     negotiationTactics?: { // NEW: Đàm phán bậc cao
         anchoringPoint: string; // Điểm neo giá
         silenceTactics: string; // Khi nào nên im lặng
         pacingStrategy: string; // Điều tiết nhịp độ
     };
+    riskMitigationStrat?: string; // NEW: Chiến lược chuyển giao rủi ro
 }
 
 // --- New Business Formation Report Structure ---
@@ -251,7 +253,8 @@ export interface BusinessFormationReport {
     };
     validExpensesGuide: string[];
     legalRisks: string[];
-    regulatoryArbitrage?: string; 
+    regulatoryArbitrage?: string; // Strategic field
+    futureExpansionStrategy?: string; // NEW: Chiến lược mở rộng 3-5 năm
     globalChatHistory?: ChatMessage[];
 }
 
@@ -267,6 +270,7 @@ export interface LandProcedureReport {
         basis: string; 
     }[];
     legalRisksAndTips: string[]; 
+    insiderTips?: string; // NEW: Mẹo xử lý thực tế (Quan hệ, quy trình ngầm)
     globalChatHistory?: ChatMessage[];
 }
 
@@ -277,12 +281,14 @@ export interface DivorceReport {
         strategy: string;
         evidenceNeeded: string[];
         cunningTips: string; 
+        custodyLeveragePoints?: string; // NEW: Điểm gây áp lực giành quyền nuôi con
     };
     assetDivision: {
         commonAssets: string[];
         privateAssets: string[];
         divisionStrategy: string; 
         cunningTips: string;
+        assetTracingStrategy?: string; // NEW: Chiến lược truy vết tài sản ẩn
     };
     procedureRoadmap: { step: string; description: string }[];
     emotionalAndLegalAdvice: string;
