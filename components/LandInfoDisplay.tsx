@@ -50,7 +50,7 @@ export const LandInfoDisplay: React.FC<{ report: AnalysisReport }> = ({ report }
         return !invalidPhrases.some(phrase => text.includes(phrase));
     });
 
-    if (!hasMeaningfulData) {
+    if (!hasMeaningfulData && (!landInfo.symbolsAnalysis || landInfo.symbolsAnalysis.length === 0)) {
         return null;
     }
 
@@ -60,7 +60,7 @@ export const LandInfoDisplay: React.FC<{ report: AnalysisReport }> = ({ report }
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 20.944A12.096 12.096 0 0012 21c4.217 0 7.9-2.405 9.997-5.993A11.952 11.952 0 0012 2.944a11.955 11.955 0 015.618 3.04z" />
                 </svg>
-                <span className="text-xs font-bold text-teal-800">Dữ liệu Đất đai được trích xuất</span>
+                <span className="text-xs font-bold text-teal-800">Dữ liệu Đất đai & Ký hiệu Bản vẽ</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
@@ -77,6 +77,42 @@ export const LandInfoDisplay: React.FC<{ report: AnalysisReport }> = ({ report }
                     <InfoRow label="Tình trạng quy hoạch" value={landInfo.planningStatus} />
                 </div>
             </div>
+
+            {/* NEW: Detailed Symbol Analysis Table */}
+            {landInfo.symbolsAnalysis && landInfo.symbolsAnalysis.length > 0 && (
+                <div className="mt-4 border rounded-lg overflow-hidden shadow-sm">
+                    <div className="bg-teal-100 px-3 py-2 border-b border-teal-200">
+                        <h5 className="text-sm font-bold text-teal-900 flex items-center gap-2">
+                            Giải mã Ký hiệu Bản vẽ (Theo Niên đại Pháp lý)
+                        </h5>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-600 font-semibold border-b">
+                                <tr>
+                                    <th className="px-3 py-2">Ký hiệu Gốc</th>
+                                    <th className="px-3 py-2">Giai đoạn</th>
+                                    <th className="px-3 py-2">Ý nghĩa Lịch sử</th>
+                                    <th className="px-3 py-2">Quy đổi Hiện tại</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {landInfo.symbolsAnalysis.map((item, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-50">
+                                        <td className="px-3 py-2 font-bold text-blue-600">{item.symbol}</td>
+                                        <td className="px-3 py-2 text-slate-600">{item.period}</td>
+                                        <td className="px-3 py-2">{item.meaning}</td>
+                                        <td className="px-3 py-2 font-semibold text-green-700">{item.currentEquivalent}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="px-3 py-2 bg-slate-50 text-xs text-slate-500 italic border-t">
+                        * Ký hiệu đất thay đổi tùy theo Luật Đất đai từng thời kỳ (1993, 2003, 2013, 2024).
+                    </div>
+                </div>
+            )}
         </ReportSection>
     );
 };

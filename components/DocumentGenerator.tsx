@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { generateDocumentFromTemplate, extractInfoFromFile, generateFieldContent } from '../services/geminiService.ts';
 import { Loader } from './Loader.tsx';
@@ -33,6 +32,7 @@ const DOC_TYPE_LABELS: Record<DocType, string> = {
     householdRegistration: 'Hồ sơ Đăng ký Hộ kinh doanh',
     landRegistrationApplication: 'Đơn Đăng ký Biến động Đất đai',
     divorceAgreement: 'Thỏa thuận Ly hôn',
+    noContactOrder: 'Đơn yêu cầu cấm tiếp xúc',
 };
 
 const FieldLabel: React.FC<{ fieldName: string }> = ({ fieldName }) => {

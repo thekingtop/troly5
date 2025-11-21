@@ -15,11 +15,10 @@ import { DownloadIcon } from './icons/DownloadIcon.tsx';
 import { RefreshIcon } from './icons/RefreshIcon.tsx';
 import { EditIcon } from './icons/EditIcon.tsx';
 import { LandInfoDisplay } from './LandInfoDisplay.tsx';
-import { AnalysisIcon } from './icons/AnalysisIcon.tsx'; // Ensure this import exists
+import { AnalysisIcon } from './icons/AnalysisIcon.tsx'; 
+import { ExecutionRoadmapPanel } from './ExecutionRoadmapPanel.tsx'; // NEW Import
 
-// --- Internal Components and Icons ---
-declare var html2canvas: any;
-
+// ... (Internal Icons BrainIcon, ShieldCheckIcon, ProcedureIcon, etc. remain same)
 const BrainIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
@@ -28,7 +27,7 @@ const BrainIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 const ShieldCheckIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 1.043 3.296 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
   </svg>
 );
 
@@ -81,6 +80,7 @@ const TargetIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     </svg>
 );
 
+// ... (Keep CunningLawyerText, HighlightedText, and other helpers as is)
 const CunningLawyerText: React.FC<{ text: string | string[] | undefined }> = ({ text }) => {
     if (!text) return null;
     const content = Array.isArray(text) ? text.join('\n') : text;
@@ -102,13 +102,11 @@ const CunningLawyerText: React.FC<{ text: string | string[] | undefined }> = ({ 
                         </div>
                     );
                 }
-                // Render text with newlines
                 return <React.Fragment key={index}>{part.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}</React.Fragment>;
             })}
         </>
     );
 };
-
 
 const HighlightedText: React.FC<{ text: string | undefined; term: string }> = React.memo(({ text, term }) => {
     if (!term.trim() || !text) { return <>{text}</>; }
@@ -146,7 +144,7 @@ const getAnalysisModeLabel = (type: LitigationType) => {
     }
 };
 
-// ... (Keep ChatWindow and other helper components as is)
+// ... (ChatWindow, ReportSection, DevilAdvocateSection, WarRoomSection, OpponentAnalysisSection remain same)
 const ChatWindow: React.FC<{
     chatHistory: ChatMessage[];
     onSendMessage: (message: string) => void;
@@ -285,7 +283,6 @@ const DevilAdvocateSection: React.FC<{ report: AnalysisReport }> = ({ report }) 
     );
 };
 
-// --- WAR ROOM COMPONENT (NEW - LAZY LOADED) ---
 const WarRoomSection: React.FC<{ report: AnalysisReport, onUpdateReport: (report: AnalysisReport) => void, files: UploadedFile[] }> = ({ report, onUpdateReport, files }) => {
     const { winProbabilityAnalysis, proposedStrategy } = report;
     const layeredStrategy = proposedStrategy?.layeredStrategy;
@@ -411,7 +408,6 @@ const WarRoomSection: React.FC<{ report: AnalysisReport, onUpdateReport: (report
     );
 };
 
-// ... (Keep OpponentAnalysisSection as is)
 interface OpponentAnalysisSectionProps {
   report: AnalysisReport | null;
   files: UploadedFile[];
@@ -420,6 +416,7 @@ interface OpponentAnalysisSectionProps {
 }
 
 const OpponentAnalysisSection: React.FC<OpponentAnalysisSectionProps> = ({ report, files, onUpdateReport, highlightTerm }) => {
+    // ... (Keep as is)
     const [opponentArgs, setOpponentArgs] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isPredicting, setIsPredicting] = useState(false);
@@ -431,7 +428,7 @@ const OpponentAnalysisSection: React.FC<OpponentAnalysisSectionProps> = ({ repor
         setError(null);
         try {
             const predictedArgs = await predictOpponentArguments(report, files);
-            setOpponentArgs(predictedArgs.join('\n\n- ')); // Format as a list
+            setOpponentArgs(predictedArgs.join('\n\n- ')); 
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Lỗi không xác định khi giả định');
         } finally {
@@ -459,13 +456,7 @@ const OpponentAnalysisSection: React.FC<OpponentAnalysisSectionProps> = ({ repor
             <div className="space-y-4">
                 <div>
                     <label htmlFor="opponentArgs" className="block text-sm font-semibold text-slate-700 mb-1.5">Nhập hoặc để AI giả định các luận điểm của đối phương:</label>
-                    <textarea
-                        id="opponentArgs"
-                        value={opponentArgs}
-                        onChange={(e) => setOpponentArgs(e.target.value)}
-                        placeholder="Ví dụ: Nguyên đơn cho rằng hợp đồng vô hiệu do bị lừa dối. Bằng chứng là email ngày X..."
-                        className="w-full h-28 p-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm"
-                    />
+                    <textarea id="opponentArgs" value={opponentArgs} onChange={(e) => setOpponentArgs(e.target.value)} placeholder="Ví dụ: Nguyên đơn cho rằng hợp đồng vô hiệu..." className="w-full h-28 p-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <button onClick={handlePredictArguments} disabled={isPredicting || isLoading} className="w-full py-2 px-4 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 border border-slate-300 disabled:bg-slate-200/50 flex items-center justify-center gap-2">
@@ -476,7 +467,6 @@ const OpponentAnalysisSection: React.FC<OpponentAnalysisSectionProps> = ({ repor
                     </button>
                 </div>
                 {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-
                 {report?.opponentAnalysis && (
                     <div className="mt-4 space-y-4 animate-fade-in">
                          {report.opponentAnalysis.map((analysis, index) => (
@@ -484,18 +474,9 @@ const OpponentAnalysisSection: React.FC<OpponentAnalysisSectionProps> = ({ repor
                                 <h5 className="font-semibold text-slate-800 mb-2">Đối Luận điểm: "<HighlightedText text={analysis.argument as string} term={highlightTerm} />"</h5>
                                 <table className="w-full text-left text-xs">
                                     <tbody>
-                                        <tr className="border-b">
-                                            <td className="font-semibold p-2 align-top w-1/3 bg-slate-100">Điểm yếu đã xác định</td>
-                                            <td className="p-2"><ul className="list-disc list-inside space-y-1">{analysis.weaknesses.map((item, i) => <li key={i}><HighlightedText text={item as string} term={highlightTerm} /></li>)}</ul></td>
-                                        </tr>
-                                         <tr className="border-b">
-                                            <td className="font-semibold p-2 align-top bg-slate-100">Luận điểm phản bác</td>
-                                            <td className="p-2"><ul className="list-disc list-inside space-y-1">{analysis.counterArguments.map((item, i) => <li key={i}><HighlightedText text={item as string} term={highlightTerm} /></li>)}</ul></td>
-                                        </tr>
-                                        <tr>
-                                            <td className="font-semibold p-2 align-top bg-slate-100">Chứng cứ hỗ trợ</td>
-                                            <td className="p-2"><ul className="list-disc list-inside space-y-1">{analysis.supportingEvidence.map((item, i) => <li key={i}><HighlightedText text={item as string} term={highlightTerm} /></li>)}</ul></td>
-                                        </tr>
+                                        <tr className="border-b"><td className="font-semibold p-2 align-top w-1/3 bg-slate-100">Điểm yếu đã xác định</td><td className="p-2"><ul className="list-disc list-inside space-y-1">{analysis.weaknesses.map((item, i) => <li key={i}><HighlightedText text={item as string} term={highlightTerm} /></li>)}</ul></td></tr>
+                                         <tr className="border-b"><td className="font-semibold p-2 align-top bg-slate-100">Luận điểm phản bác</td><td className="p-2"><ul className="list-disc list-inside space-y-1">{analysis.counterArguments.map((item, i) => <li key={i}><HighlightedText text={item as string} term={highlightTerm} /></li>)}</ul></td></tr>
+                                        <tr><td className="font-semibold p-2 align-top bg-slate-100">Chứng cứ hỗ trợ</td><td className="p-2"><ul className="list-disc list-inside space-y-1">{analysis.supportingEvidence.map((item, i) => <li key={i}><HighlightedText text={item as string} term={highlightTerm} /></li>)}</ul></td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -519,10 +500,12 @@ interface ReportDisplayProps {
   clientRequestSummary: string;
   onReanalyze: (report: AnalysisReport) => void;
   isReanalyzing: boolean;
+  // NEW: Props for roadmap state
+  roadmapState?: string[]; 
+  onUpdateRoadmapState?: (state: string[]) => void;
 }
 
-export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSummary, litigationType, onUpdateUserLaws, onUpdateReport, caseSummary, clientRequestSummary, onReanalyze, isReanalyzing, files }) => {
-    // ... (Keep state and handlers as is)
+export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSummary, litigationType, onUpdateUserLaws, onUpdateReport, caseSummary, clientRequestSummary, onReanalyze, isReanalyzing, files, roadmapState, onUpdateRoadmapState }) => {
     const [highlightTerm, setHighlightTerm] = useState('');
     const [newLaw, setNewLaw] = useState({ documentName: '', articles: [{ articleNumber: '', summary: '' }] });
     const [isAddingLaw, setIsAddingLaw] = useState(false);
@@ -540,6 +523,7 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
         }
     }, [report?.editableCaseSummary]);
 
+    // ... (Keep handleExplainLaw, handleAddNewLaw, handleRemoveUserLaw, handleChatSendMessage, handleSaveSummary, etc. as is)
     const handleExplainLaw = async (lawText: string) => {
         setExplainingLaw(lawText);
         setExplanation('');
@@ -573,20 +557,17 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                 return { ...law, articles: filteredArticles };
             }
             return law;
-        }).filter(law => law.articles.length > 0); // Remove law if no articles are left
+        }).filter(law => law.articles.length > 0);
         onUpdateUserLaws(updatedLaws);
     };
 
     const handleChatSendMessage = async (chatKey: NonNullable<typeof activeChat>, message: string) => {
         if (!report) return;
-        
         const currentHistory = report[chatKey] || [];
         const newUserMessage: ChatMessage = { role: 'user', content: message };
         const updatedHistory = [...currentHistory, newUserMessage];
-        
         onUpdateReport({ ...report, [chatKey]: updatedHistory });
         setIsChatLoading(true);
-
         try {
             const sectionTitles: Record<NonNullable<typeof activeChat>, string> = {
                 gapAnalysisChat: "Phân tích Lỗ hổng & Hành động",
@@ -600,36 +581,15 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
             const aiMessage: ChatMessage = { role: 'model', content: aiResponse };
             const finalHistory = [...updatedHistory, aiMessage];
             onUpdateReport({ ...report, [chatKey]: finalHistory });
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setIsChatLoading(false);
-        }
+        } catch (err) { console.error(err); } finally { setIsChatLoading(false); }
     };
     
-    const handleSaveSummary = () => {
-        if (report) {
-            onUpdateReport({ ...report, editableCaseSummary: editedSummary });
-        }
-        setIsEditingSummary(false);
-    };
-    const handleCancelEditSummary = () => {
-        setEditedSummary(report?.editableCaseSummary || '');
-        setIsEditingSummary(false);
-    };
-    const handleReanalyzeClick = () => {
-        if (report) {
-            const reportToReanalyze = isEditingSummary ? { ...report, editableCaseSummary: editedSummary } : report;
-            onReanalyze(reportToReanalyze);
-            setIsEditingSummary(false);
-        }
-    };
+    const handleSaveSummary = () => { if (report) { onUpdateReport({ ...report, editableCaseSummary: editedSummary }); } setIsEditingSummary(false); };
+    const handleCancelEditSummary = () => { setEditedSummary(report?.editableCaseSummary || ''); setIsEditingSummary(false); };
+    const handleReanalyzeClick = () => { if (report) { const reportToReanalyze = isEditingSummary ? { ...report, editableCaseSummary: editedSummary } : report; onReanalyze(reportToReanalyze); setIsEditingSummary(false); } };
 
-    if (!report && !caseSummary && !clientRequestSummary) {
-        return null;
-    }
+    if (!report && !caseSummary && !clientRequestSummary) { return null; }
     
-    // Check if the case is land-related to show specialized UI
     const isLandCase = !!report?.landInfo;
 
     return (
@@ -637,27 +597,15 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
             <div className="flex justify-between items-center">
                 <div className="relative flex-grow">
                      <SearchIcon className="w-5 h-5 text-slate-400 absolute top-1/2 left-3 -translate-y-1/2" />
-                     <input
-                        type="text"
-                        value={highlightTerm}
-                        onChange={(e) => setHighlightTerm(e.target.value)}
-                        placeholder="Tìm kiếm & highlight trong báo cáo..."
-                        className="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-500"
-                    />
+                     <input type="text" value={highlightTerm} onChange={(e) => setHighlightTerm(e.target.value)} placeholder="Tìm kiếm & highlight trong báo cáo..." className="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-1 focus:ring-blue-500"/>
                 </div>
                 <button onClick={handleReanalyzeClick} disabled={isReanalyzing} className="ml-3 flex items-center gap-2 px-4 py-2 text-sm bg-slate-700 text-white font-semibold rounded-lg hover:bg-slate-800 disabled:bg-slate-400">
-                    {isReanalyzing ? <Loader /> : <RefreshIcon className="w-4 h-4" />}
-                    Phân tích lại
+                    {isReanalyzing ? <Loader /> : <RefreshIcon className="w-4 h-4" />} Phân tích lại
                 </button>
             </div>
             
-            {/* Analysis Mode Banner */}
-            <div className={`flex items-center gap-2 mb-4 p-3 rounded-lg border border-slate-200 ${
-                litigationType === 'civil' ? 'bg-blue-50 border-blue-200 text-blue-800' :
-                (litigationType === 'criminal' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-orange-50 border-orange-200 text-orange-800')
-            }`}>
-                <AnalysisIcon className="w-5 h-5" />
-                <span className="font-bold">Chế độ Phân tích: {getAnalysisModeLabel(litigationType)}</span>
+            <div className={`flex items-center gap-2 mb-4 p-3 rounded-lg border border-slate-200 ${litigationType === 'civil' ? 'bg-blue-50 border-blue-200 text-blue-800' : (litigationType === 'criminal' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-orange-50 border-orange-200 text-orange-800')}`}>
+                <AnalysisIcon className="w-5 h-5" /> <span className="font-bold">Chế độ Phân tích: {getAnalysisModeLabel(litigationType)}</span>
             </div>
             
             {report && <WarRoomSection report={report} onUpdateReport={onUpdateReport} files={files} />}
@@ -668,16 +616,8 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                 </ReportSection>
             )}
 
-             {caseSummary && (
-                <ReportSection title="Tóm tắt Diễn biến Vụ việc (AI trích xuất)">
-                    <p><HighlightedText text={caseSummary} term={highlightTerm} /></p>
-                </ReportSection>
-             )}
-              {clientRequestSummary && (
-                <ReportSection title="Tóm tắt Yêu cầu của Khách hàng (AI trích xuất)">
-                    <p><HighlightedText text={clientRequestSummary} term={highlightTerm} /></p>
-                </ReportSection>
-             )}
+             {caseSummary && (<ReportSection title="Tóm tắt Diễn biến Vụ việc (AI trích xuất)"><p><HighlightedText text={caseSummary} term={highlightTerm} /></p></ReportSection>)}
+             {clientRequestSummary && (<ReportSection title="Tóm tắt Yêu cầu của Khách hàng (AI trích xuất)"><p><HighlightedText text={clientRequestSummary} term={highlightTerm} /></p></ReportSection>)}
 
             {report && (
                 <>
@@ -691,19 +631,13 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                                     <button onClick={handleSaveSummary} className="px-3 py-1 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700">Lưu</button>
                                 </div>
                             </div>
-                        ) : (
-                            <p><HighlightedText text={report.editableCaseSummary} term={highlightTerm} /></p>
-                        )}
+                        ) : ( <p><HighlightedText text={report.editableCaseSummary} term={highlightTerm} /></p> )}
                     </ReportSection>
                 )}
                 
                 {isLandCase && <LandInfoDisplay report={report} />}
 
-                {report.caseTimeline?.length > 0 && (
-                     <ReportSection title="Dòng thời gian Vụ việc">
-                        <CaseTimeline events={report.caseTimeline} highlightTerm={highlightTerm} onUpdateEvents={(updatedEvents) => onUpdateReport({...report, caseTimeline: updatedEvents})} />
-                    </ReportSection>
-                )}
+                {report.caseTimeline?.length > 0 && (<ReportSection title="Dòng thời gian Vụ việc"><CaseTimeline events={report.caseTimeline} highlightTerm={highlightTerm} onUpdateEvents={(updatedEvents) => onUpdateReport({...report, caseTimeline: updatedEvents})} /></ReportSection>)}
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="p-4 bg-slate-100/50 border rounded-lg">
@@ -719,6 +653,15 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                 <ReportSection title="1. Quan hệ pháp luật"><p><HighlightedText text={report.legalRelationship} term={highlightTerm} /></p></ReportSection>
                 <ReportSection title="2. Vấn đề pháp lý cốt lõi"><ul className="list-disc list-inside space-y-1.5">{report.coreLegalIssues?.map((issue, i) => <li key={i}><HighlightedText text={issue} term={highlightTerm} /></li>)}</ul></ReportSection>
                 
+                {/* NEW: Execution Roadmap for Litigation */}
+                {report.executionRoadmap && (
+                    <ExecutionRoadmapPanel 
+                        roadmap={report.executionRoadmap} 
+                        checkedTasks={roadmapState || []} 
+                        setCheckedTasks={onUpdateRoadmapState || (() => {})} 
+                    />
+                )}
+
                 {report.requestResolutionPlan && (
                     <ReportSection title="3. Phương án giải quyết theo Yêu cầu" chatHistory={report.resolutionPlanChat} onChatToggle={() => setActiveChat(prev => prev === 'resolutionPlanChat' ? null : 'resolutionPlanChat')} isChatOpen={activeChat === 'resolutionPlanChat'}>
                         <ul className="list-disc list-inside space-y-1.5">{report.requestResolutionPlan.map((item, i) => <li key={i}><HighlightedText text={item} term={highlightTerm} /></li>)}</ul>

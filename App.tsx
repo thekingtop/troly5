@@ -1,3 +1,5 @@
+
+// ... (Keep imports)
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FileUpload } from './components/FileUpload.tsx';
 import { ReportDisplay } from './components/ReportDisplay.tsx';
@@ -30,7 +32,7 @@ import { DocumentIcon } from './components/icons/DocumentIcon.tsx';
 import { ChatIcon } from './components/icons/ChatIcon.tsx';
 import { SendIcon } from './components/icons/SendIcon.tsx';
 
-
+// ... (Keep helper components and global declarations)
 // Declare global variables from CDN scripts to satisfy TypeScript
 declare var docx: any;
 declare var XLSX: any;
@@ -43,7 +45,7 @@ type View = 'caseAnalysis' | 'intelligentSearch' | 'argumentMap' | 'documentGene
 type ClientPosition = 'left' | 'right' | 'not_applicable';
 type AppWorkflowType = 'litigation' | 'consulting' | 'businessFormation' | 'landProcedure' | 'divorceConsultation';
 
-// --- Local Icons & Components ---
+// ... (Icons remain the same)
 const PanelCollapseIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -128,8 +130,7 @@ const navItems = [
     { id: 'quickDraft', icon: StyledMagicIcon, label: 'Soạn thảo Nhanh' },
 ] as const;
 
-// --- Helper Functions & Types ---
-
+// ... (Helper functions fileToBase64, base64ToFile, useIsMobile)
 const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -146,7 +147,6 @@ const base64ToFile = (base64: string, filename: string, mimeType: string): File 
     return new File([byteArray], filename, { type: mimeType });
 };
 
-// --- Helper Hook for Mobile Detection ---
 const useIsMobile = () => {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     useEffect(() => {
@@ -157,8 +157,7 @@ const useIsMobile = () => {
     return isMobile;
 };
 
-
-// --- Global Chat for Litigation Workflow ---
+// ... (GlobalLitigationChat component - kept the same)
 const GlobalLitigationChat: React.FC<{
     report: AnalysisReport;
     onUpdateReport: (updatedReport: AnalysisReport) => void;
@@ -273,6 +272,9 @@ export default function App() {
     const [showWorkflowSelection, setShowWorkflowSelection] = useState(true);
     const [currentWorkflow, setCurrentWorkflow] = useState<AppWorkflowType>('litigation');
     const [missingLibs, setMissingLibs] = useState<string[]>([]);
+    
+    // NEW: Roadmap State
+    const [roadmapState, setRoadmapState] = useState<string[]>([]);
 
 
     const isMobile = useIsMobile();
@@ -293,13 +295,10 @@ export default function App() {
             const missing = [];
             if (typeof (window as any).docx === 'undefined') missing.push('docx');
             if (typeof (window as any).XLSX === 'undefined') missing.push('XLSX');
-            // jspdf exports to window.jspdf, html2canvas to window.html2canvas, mammoth to window.mammoth
             if (typeof (window as any).jspdf === 'undefined') missing.push('jspdf');
             if (typeof (window as any).html2canvas === 'undefined') missing.push('html2canvas');
             if (typeof (window as any).mammoth === 'undefined') missing.push('mammoth');
-            // Optional: Check for JSZip if it's critical (often bundled, but good to verify)
             if (typeof (window as any).JSZip === 'undefined') missing.push('JSZip');
-
 
             if (missing.length === 0) {
                 setLibsReady(true);
@@ -342,6 +341,7 @@ export default function App() {
         setError(null);
         setMainActionType('analyze');
         setIsLeftPanelCollapsed(false); // Ensure panel is open for new case
+        setRoadmapState([]); // Reset roadmap
     };
 
     const handleSelectCase = (savedCase: SavedCase) => {
@@ -351,13 +351,16 @@ export default function App() {
         const loadedFiles: UploadedFile[] = (savedCase.files || []).map(sf => ({
             id: `${sf.name}-${Math.random()}`,
             file: base64ToFile(sf.content, sf.name, sf.type),
-            preview: null, category: 'Uncategorized', status: 'completed' // Assume loaded files are processed
+            preview: null, category: sf.category || 'Uncategorized', status: 'completed' // Restore category
         }));
         setFiles(loadedFiles);
         setReport(savedCase.analysisReport);
         setQuery(savedCase.query);
         setJurisdiction(savedCase.jurisdiction || '');
         if (savedCase.litigationType) setLitigationType(savedCase.litigationType);
+        // Load roadmap state
+        setRoadmapState(savedCase.roadmapState || []);
+        
         setError(null);
         setMainActionType(savedCase.analysisReport ? 'update' : 'analyze');
         if (savedCase.analysisReport) {
@@ -367,6 +370,7 @@ export default function App() {
         }
     };
 
+    // ... (handleDeleteCase, handleBackupData, handleRestoreData, processFiles, performAnalysis, handleAnalyzeClick, handleUpdateClick, handleReanalyze - keep as is)
     const handleDeleteCase = async (e: React.MouseEvent, caseId: string) => {
         e.stopPropagation();
         if (window.confirm("Bạn có chắc chắn muốn xóa vụ việc này?")) {
@@ -419,27 +423,19 @@ export default function App() {
         reader.readAsText(file);
     };
 
-    // ... (Keep processFiles, performAnalysis, handleAnalyzeClick, handleUpdateClick as is)
     const processFiles = useCallback(async (filesToProcess: UploadedFile[]) => {
         const filesOnly = filesToProcess.map(f => f.file);
-        
-        // Run categorization and summarization in parallel
         const [categories, summaries] = await Promise.all([
             categorizeMultipleFiles(filesOnly),
             extractSummariesFromFiles(filesToProcess, clientPosition)
         ]);
-
-        // Update categories
         setFiles(prevFiles => prevFiles.map(f => ({
             ...f,
             status: 'completed',
             category: categories[f.file.name] || 'Uncategorized'
         })));
-        
-        // Update summaries only if not already set manually
         if (!caseSummary) setCaseSummary(summaries.caseSummary);
         if (!clientRequestSummary) setClientRequestSummary(summaries.clientRequestSummary);
-
     }, [caseSummary, clientRequestSummary, clientPosition]);
 
     const performAnalysis = useCallback(async (filesToAnalyze: UploadedFile[]) => {
@@ -447,16 +443,8 @@ export default function App() {
         try {
             const result = await analyzeCaseFiles(filesToAnalyze, query, undefined, clientPosition, jurisdiction);
             setReport(result);
-            setIsLeftPanelCollapsed(true); // Auto-collapse on successful analysis
+            setIsLeftPanelCollapsed(true);
             setMainActionType('update');
-            if (result.litigationStage) {
-                 // Check if the stage exists for the current type, if not default to first
-                 const stageExists = litigationStagesByType[litigationType].some(s => s.id === result.litigationStage);
-                 if (!stageExists) {
-                     // Keep current manual selection or default? AI's output might be raw string.
-                     // For now, we trust the AI but if it's not in the list, UI might show raw ID.
-                 }
-            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "An unknown error occurred");
         } finally {
@@ -469,21 +457,16 @@ export default function App() {
             setError("Vui lòng tải lên hồ sơ hoặc nhập yêu cầu.");
             return;
         }
-        
-        // Check if libraries are ready before starting processing that relies on them (e.g. docx parsing)
         if (files.length > 0 && !libsReady) {
              setError(`Các thư viện xử lý tệp chưa sẵn sàng. Vui lòng tải lại trang.`);
              return;
         }
-
         setError(null);
-        setReport(null); // Clear previous report
-
+        setReport(null);
         setIsProcessing(true);
         setIsPreprocessingFinished(false);
         const filesToProcess = files.map(f => ({ ...f, status: 'processing' as const }));
         setFiles(filesToProcess);
-
         try {
              await processFiles(filesToProcess);
         } catch (e) {
@@ -492,7 +475,6 @@ export default function App() {
         } finally {
             setIsPreprocessingFinished(true);
         }
-
     }, [files, query, processFiles, libsReady, missingLibs]);
 
     const handleUpdateClick = async () => {
@@ -500,7 +482,6 @@ export default function App() {
         setIsLoading(true);
         setError(null);
         try {
-            // Pass the current report AND the current selected stage (which might have been manually changed)
             const result = await analyzeCaseFiles(files, query, { report, stage: report.litigationStage }, clientPosition, jurisdiction);
             setReport(result);
         } catch (err) {
@@ -513,7 +494,7 @@ export default function App() {
     const handleReanalyze = async (reportToReanalyze: AnalysisReport) => {
         setIsReanalyzing(true);
         try {
-             const result = await reanalyzeCaseWithCorrections(reportToReanalyze, files, clientPosition);
+             const result = await reanalyzeCaseWithCorrections(reportToReanalyze, files, clientPosition, jurisdiction);
              setReport(result);
         } catch (err) {
              alert("Phân tích lại thất bại: " + (err instanceof Error ? err.message : "Lỗi không xác định"));
@@ -530,7 +511,8 @@ export default function App() {
                 files.map(async f => ({
                     name: f.file.name,
                     type: f.file.type,
-                    content: await fileToBase64(f.file)
+                    content: await fileToBase64(f.file),
+                    category: f.category
                 }))
             );
 
@@ -539,23 +521,24 @@ export default function App() {
             
             const caseToSave: SavedCase = {
                 ...activeCase,
-                id: isNewCase ? now : activeCase.id, // Use timestamp as ID for new cases
+                id: isNewCase ? now : activeCase.id, 
                 createdAt: isNewCase ? now : activeCase.createdAt,
                 updatedAt: now,
-                caseContent: caseSummary, // Using summary as content for preview
-                clientRequest: clientRequestSummary, // Using summary
+                caseContent: caseSummary,
+                clientRequest: clientRequestSummary,
                 query,
                 files: serializableFiles,
                 litigationType,
                 litigationStage: report?.litigationStage || 'first_instance',
                 analysisReport: report,
-                jurisdiction
+                jurisdiction,
+                roadmapState: roadmapState // Save roadmap state
             };
 
             await saveCase(caseToSave);
             const updatedCases = await getAllCasesSorted();
             setSavedCases(updatedCases);
-            setActiveCase(caseToSave); // Update active case with new ID/Data
+            setActiveCase(caseToSave);
             alert("Đã lưu vụ việc thành công!");
         } catch (err) {
             console.error("Error saving case:", err);
@@ -571,40 +554,34 @@ export default function App() {
             return;
         }
         setIsExporting(true);
-        
         try {
             const fileName = `Bao_cao_Phan_tich_${new Date().toISOString().split('T')[0]}`;
-            
             if (format === 'pdf') {
                 const { jsPDF } = (window as any).jspdf;
                 const doc = new jsPDF();
-                // Basic PDF generation (placeholder)
                 doc.setFontSize(18);
                 doc.text("BÁO CÁO PHÂN TÍCH VỤ VIỆC", 105, 20, { align: 'center' });
                 doc.setFontSize(12);
                 let y = 40;
-                
                 if (customizedReport.customNotes) {
                      doc.text("GHI CHÚ:", 20, y); y+=10;
                      const splitNotes = doc.splitTextToSize(customizedReport.customNotes, 170);
                      doc.text(splitNotes, 20, y);
                      y += splitNotes.length * 7 + 10;
                 }
-
                 orderedSections.forEach(section => {
                     if (section.id !== 'customNotesSection' && customizedReport[section.id as keyof AnalysisReport]) {
                         doc.setFont("helvetica", "bold");
                         doc.text(section.title.toUpperCase(), 20, y);
                         y += 10;
                         doc.setFont("helvetica", "normal");
-                        const content = JSON.stringify(customizedReport[section.id as keyof AnalysisReport]); // Simplification
+                        const content = JSON.stringify(customizedReport[section.id as keyof AnalysisReport]);
                         const splitContent = doc.splitTextToSize(content.substring(0, 500) + "...", 170);
                         doc.text(splitContent, 20, y);
                         y += splitContent.length * 7 + 10;
                         if (y > 280) { doc.addPage(); y = 20; }
                     }
                 });
-                
                 doc.save(`${fileName}.pdf`);
             } else {
                 alert("Tính năng xuất file này đang được hoàn thiện.");
@@ -620,14 +597,11 @@ export default function App() {
     
     const handleIntelligentSearch = async (searchQuery: string) => {
         if (!report) return;
-        
         const currentHistory = report.intelligentSearchChat || [];
         const newUserMessage: ChatMessage = { role: 'user', content: searchQuery };
         const updatedHistory = [...currentHistory, newUserMessage];
-        
         const updatedReport = { ...report, intelligentSearchChat: updatedHistory };
         setReport(updatedReport);
-        
         try {
             const answer = await intelligentSearchQuery(report, files, updatedHistory, searchQuery);
              const aiMessage: ChatMessage = { role: 'model', content: answer };
@@ -641,6 +615,7 @@ export default function App() {
     };
 
     if (showWorkflowSelection) {
+        // ... (Keep Workflow Selection Screen as is)
         return (
             <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
                 <header className="bg-white shadow-sm border-b border-slate-200 p-4 flex justify-between items-center sticky top-0 z-10">
@@ -660,7 +635,7 @@ export default function App() {
                 </header>
                 <main className="flex-grow p-8 max-w-7xl mx-auto w-full">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-12">
-                        {/* Litigation Card */}
+                        {/* ... Cards ... */}
                         <button onClick={() => handleNewCase('litigation')} className="group relative flex flex-col items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-blue-400 transition-all duration-300 text-center">
                              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                                 <StyledAnalysisIcon className="w-8 h-8 text-blue-600" />
@@ -668,7 +643,6 @@ export default function App() {
                             <h2 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">Tranh tụng</h2>
                             <p className="text-sm text-slate-500 line-clamp-3">Phân tích hồ sơ, xây dựng chiến lược, tìm kiếm chứng cứ cho các vụ án.</p>
                         </button>
-                        {/* Consulting Card */}
                         <button onClick={() => handleNewCase('consulting')} className="group relative flex flex-col items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-green-400 transition-all duration-300 text-center">
                              <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                                 <ChatBubbleLeftIcon className="w-8 h-8 text-green-600" />
@@ -676,7 +650,6 @@ export default function App() {
                             <h2 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-green-600 transition-colors">Tư vấn Nhanh</h2>
                             <p className="text-sm text-slate-500 line-clamp-3">Tư vấn pháp lý, rà soát hợp đồng, giải đáp thắc mắc thường xuyên.</p>
                         </button>
-                        {/* Business Formation Card */}
                          <button onClick={() => handleNewCase('businessFormation')} className="group relative flex flex-col items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-purple-400 transition-all duration-300 text-center">
                              <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                                 <BuildingOfficeIcon className="w-8 h-8 text-purple-600" />
@@ -684,7 +657,6 @@ export default function App() {
                             <h2 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-purple-600 transition-colors">Thành lập DN</h2>
                             <p className="text-sm text-slate-500 line-clamp-3">Tư vấn mô hình, thuế, và soạn hồ sơ đăng ký kinh doanh.</p>
                         </button>
-                        {/* Land Procedure Card */}
                          <button onClick={() => handleNewCase('landProcedure')} className="group relative flex flex-col items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-teal-400 transition-all duration-300 text-center">
                              <div className="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                                 <MapIcon className="w-8 h-8 text-teal-600" />
@@ -692,7 +664,6 @@ export default function App() {
                             <h2 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-teal-600 transition-colors">Đăng ký Đất đai</h2>
                             <p className="text-sm text-slate-500 line-clamp-3">Thủ tục sang tên sổ đỏ, biến động đất đai, tính thuế phí.</p>
                         </button>
-                        {/* Divorce Consultation Card */}
                          <button onClick={() => handleNewCase('divorceConsultation')} className="group relative flex flex-col items-center p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-rose-400 transition-all duration-300 text-center">
                              <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                                 <HeartIcon className="w-8 h-8 text-rose-600" />
@@ -937,6 +908,8 @@ export default function App() {
                                             clientRequestSummary={clientRequestSummary}
                                             onReanalyze={handleReanalyze}
                                             isReanalyzing={isReanalyzing}
+                                            roadmapState={roadmapState}
+                                            onUpdateRoadmapState={setRoadmapState}
                                         />
                                     </>
                                 ) : (

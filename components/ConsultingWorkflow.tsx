@@ -1,4 +1,8 @@
 
+
+
+
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FileUpload } from './FileUpload.tsx';
 import { Loader } from './Loader.tsx';
@@ -381,7 +385,7 @@ export const ConsultingWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBac
         if (activeCase?.workflowType === 'consulting') {
             const loadedFiles: UploadedFile[] = (activeCase.files || []).map(sf => ({
                 id: `${sf.name}-${Math.random()}`, file: base64ToFile(sf.content, sf.name, sf.type),
-                preview: null, category: 'Uncategorized', status: 'pending'
+                preview: null, category: sf.category || 'Uncategorized', status: 'completed'
             }));
             setFiles(loadedFiles);
             setDisputeContent(activeCase.caseContent || '');
@@ -409,7 +413,7 @@ export const ConsultingWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBac
         setIsSaving(true);
         try {
             const serializableFiles: SerializableFile[] = await Promise.all(
-                files.map(async f => ({ name: f.file.name, type: f.file.type, content: await fileToBase64(f.file) }))
+                files.map(async f => ({ name: f.file.name, type: f.file.type, content: await fileToBase64(f.file), category: f.category }))
             );
             const now = new Date().toISOString();
             const isNewCase = activeCase.id.startsWith('new_');
@@ -953,6 +957,8 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
     const [caseName, setCaseName] = useState('');
     const [view, setView] = useState<'analysis' | 'registration'>('analysis');
     const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+    // --- Fix: Add files state ---
+    const [files, setFiles] = useState<UploadedFile[]>([]); 
     const isMobile = useIsMobile();
 
     useEffect(() => {
@@ -972,6 +978,12 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
             if (activeCase.businessFormationReport) {
                 setIsLeftPanelCollapsed(true);
             }
+            // --- Fix: Load files ---
+            const loadedFiles: UploadedFile[] = (activeCase.files || []).map(sf => ({
+                id: `${sf.name}-${Math.random()}`, file: base64ToFile(sf.content, sf.name, sf.type),
+                preview: null, category: sf.category || 'Uncategorized', status: 'completed'
+            }));
+            setFiles(loadedFiles);
         }
     }, [activeCase]);
 
@@ -987,11 +999,14 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
 
         setIsSaving(true);
         try {
+            const serializableFiles: SerializableFile[] = await Promise.all(
+                files.map(async f => ({ name: f.file.name, type: f.file.type, content: await fileToBase64(f.file), category: f.category }))
+            );
             const now = new Date().toISOString();
             const isNewCase = activeCase.id.startsWith('new_');
             const caseToSave: SavedCase = {
                 ...activeCase, id: isNewCase ? now : activeCase.id, createdAt: isNewCase ? now : activeCase.createdAt,
-                updatedAt: now, name: newCaseName, workflowType: 'businessFormation', files: [], 
+                updatedAt: now, name: newCaseName, workflowType: 'businessFormation', files: serializableFiles, 
                 caseContent: businessIdea,
                 clientRequest: `Vốn: ${additionalInfo.capital}, Thành viên: ${additionalInfo.members}, Địa điểm: ${additionalInfo.location}`,
                 query: '', litigationType: null, litigationStage: 'consulting', analysisReport: null, 
@@ -1043,6 +1058,8 @@ export const BusinessFormationWorkflow: React.FC<WorkflowProps> = ({ onPreview, 
                 </div>
                  <div className="flex-grow overflow-y-auto pr-2 -mr-4 space-y-4">
                     <h2 className="text-xl font-bold text-slate-800">Tư vấn Thành lập Doanh nghiệp</h2>
+                    {/* Fix: Added FileUpload component */}
+                    <FileUpload files={files} setFiles={setFiles} onPreview={onPreview} />
                      <div>
                         <label htmlFor="businessIdea" className="block text-sm font-semibold text-slate-700 mb-1.5">Ý tưởng / Ngành nghề Kinh doanh</label>
                         <textarea id="businessIdea" value={businessIdea} onChange={e => setBusinessIdea(e.target.value)} placeholder="VD: Mở một quán cà phê sách tại Hà Nội, tập trung vào khách hàng trẻ..." className="w-full h-32 p-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm" />

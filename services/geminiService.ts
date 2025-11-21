@@ -1,4 +1,8 @@
 
+
+
+
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type {
   AnalysisReport, UploadedFile, FileCategory, ApplicableLaw,
@@ -381,11 +385,11 @@ export const extractSummariesFromFiles = async (files: UploadedFile[], clientPos
     }
 };
 
-export const reanalyzeCaseWithCorrections = async (report: AnalysisReport, files: UploadedFile[], clientPosition: string): Promise<AnalysisReport> => {
+export const reanalyzeCaseWithCorrections = async (report: AnalysisReport, files: UploadedFile[], clientPosition: string, jurisdiction?: string): Promise<AnalysisReport> => {
     // Re-uses analyzeCaseFiles but could have specific prompt logic if needed.
     // For simplicity, treating it as a fresh analysis with existing report context if we were to implement robust re-analysis.
     // Currently simple re-run.
-    return analyzeCaseFiles(files, "Re-analyze with corrections based on previous context.", { report, stage: report.litigationStage }, clientPosition);
+    return analyzeCaseFiles(files, "Re-analyze with corrections based on previous context.", { report, stage: report.litigationStage }, clientPosition, jurisdiction);
 };
 
 export const intelligentSearchQuery = async (report: AnalysisReport, files: UploadedFile[], history: ChatMessage[], query: string): Promise<string> => {
