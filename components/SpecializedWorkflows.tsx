@@ -53,9 +53,6 @@ const CalculatorIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   </svg>
 );
 
-// Removed CopyIcon definition as it is now handled in ExecutionRoadmapPanel or we can keep it if used elsewhere. 
-// To avoid duplicate definition error if we move things around, let's keep it here but rename if needed, or better, ensure ExecutionRoadmapPanel has its own.
-// Since I implemented ExecutionRoadmapPanel with its own CopyIconLocal, this one remains for other components in this file.
 export const CopyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m9.75 11.625-3.75-3.75" />
@@ -248,14 +245,16 @@ const GenericChat: React.FC<{
     );
 };
 
-// --- New Pricing Component ---
+// --- Updated Pricing Component ---
 const PricingTier: React.FC<{
     title: string;
     price: string;
     features: string[];
     recommended?: boolean;
     color: 'slate' | 'blue' | 'rose' | 'teal';
-}> = ({ title, price, features, recommended, color }) => {
+    isSelected?: boolean;
+    onSelect?: () => void;
+}> = ({ title, price, features, recommended, color, isSelected, onSelect }) => {
     const colorClasses = {
         slate: { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-900', header: 'bg-slate-100', btn: 'bg-slate-800 hover:bg-slate-900' },
         blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-900', header: 'bg-blue-100', btn: 'bg-blue-600 hover:bg-blue-700' },
@@ -264,7 +263,10 @@ const PricingTier: React.FC<{
     }[color];
 
     return (
-        <div className={`border rounded-xl overflow-hidden flex flex-col ${colorClasses.border} ${colorClasses.bg} ${recommended ? 'ring-2 ring-rose-500 shadow-xl transform scale-105 z-10' : 'shadow-sm'}`}>
+        <div 
+            onClick={onSelect}
+            className={`border rounded-xl overflow-hidden flex flex-col transition-all duration-300 cursor-pointer ${colorClasses.border} ${colorClasses.bg} ${isSelected ? `ring-4 ring-offset-2 ${color === 'rose' ? 'ring-rose-500' : (color === 'blue' ? 'ring-blue-500' : (color === 'teal' ? 'ring-teal-500' : 'ring-slate-500'))}` : (recommended ? 'ring-2 ring-rose-500 shadow-xl transform scale-105 z-10' : 'shadow-sm hover:shadow-md')}`}
+        >
             {recommended && <div className="bg-rose-500 text-white text-xs font-bold text-center py-1">KHUYÊN DÙNG</div>}
             <div className={`p-4 text-center ${colorClasses.header} border-b ${colorClasses.border}`}>
                 <h4 className={`font-bold text-lg ${colorClasses.text}`}>{title}</h4>
@@ -281,15 +283,16 @@ const PricingTier: React.FC<{
                 </ul>
             </div>
             <div className="p-4 border-t border-slate-200 bg-white">
-                <button className={`w-full py-2 rounded-lg text-white font-semibold text-sm transition-colors ${colorClasses.btn}`}>
-                    Chọn Gói Này
+                <button 
+                    onClick={(e) => { e.stopPropagation(); onSelect && onSelect(); }}
+                    className={`w-full py-2 rounded-lg text-white font-semibold text-sm transition-colors ${colorClasses.btn}`}
+                >
+                    {isSelected ? 'Đã Chọn Gói Này' : 'Chọn Gói Này'}
                 </button>
             </div>
         </div>
     );
 };
-
-// Removed ExecutionRoadmapPanel from here as it is now in a separate file and imported.
 
 // --- NEW: Panic Mode Component ---
 const PanicModePanel: React.FC<{
@@ -653,6 +656,7 @@ export const LandProcedureWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGo
     // New States for Land Tools
     const [dueDiligenceState, setDueDiligenceState] = useState<number[]>([]);
     const [roadmapState, setRoadmapState] = useState<string[]>([]);
+    const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
 
     const isMobile = useIsMobile();
 
@@ -735,6 +739,15 @@ export const LandProcedureWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGo
         } catch (err) { alert("Lỗi khi lưu hồ sơ."); } finally { setIsSaving(false); }
     };
 
+    const handleSelectPackage = (pkgName: string) => {
+        if (selectedPackage === pkgName) {
+            setSelectedPackage(null);
+        } else {
+            setSelectedPackage(pkgName);
+            alert(`Đã ghi nhận: ${pkgName}.`);
+        }
+    };
+
     return (
         <div className="flex h-screen bg-slate-100 overflow-hidden relative">
             <div className={`${isLeftPanelCollapsed ? (isMobile ? 'hidden' : 'w-0 opacity-0 p-0') : (isMobile ? 'w-full absolute z-20 h-full' : 'w-2/5 opacity-100 p-6 border-r')} bg-white flex flex-col transition-all duration-300 shadow-xl lg:shadow-none flex-shrink-0`}>
@@ -784,18 +797,24 @@ export const LandProcedureWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGo
                                 features={['Soạn thảo Hợp đồng', 'Kê khai Thuế', 'Hướng dẫn nộp hồ sơ', 'Tư vấn thuế phí']} 
                                 color="slate"
                                 recommended={true}
+                                isSelected={selectedPackage === 'Gói Cơ bản'}
+                                onSelect={() => handleSelectPackage('Gói Cơ bản')}
                             />
                             <PricingTier 
                                 title="Gói Trọn gói (Sang tên)" 
                                 price="12.000.000 đ" 
                                 features={['Bao gồm Gói Cơ bản', 'Đại diện công chứng', 'Nộp hồ sơ & Đóng thuế', 'Nhận kết quả tại nhà']} 
                                 color="teal"
+                                isSelected={selectedPackage === 'Gói Trọn gói'}
+                                onSelect={() => handleSelectPackage('Gói Trọn gói')}
                             />
                             <PricingTier 
                                 title="Gói Giải quyết Tranh chấp" 
                                 price="Thỏa thuận" 
                                 features={['Hòa giải tại UBND Xã', 'Khởi kiện Tòa án', 'Tư vấn chiến lược', 'Thu thập chứng cứ']} 
                                 color="rose"
+                                isSelected={selectedPackage === 'Gói Giải quyết Tranh chấp'}
+                                onSelect={() => handleSelectPackage('Gói Giải quyết Tranh chấp')}
                             />
                         </div>
 
@@ -865,6 +884,7 @@ export const DivorceWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBack, 
     const [isDomesticViolence, setIsDomesticViolence] = useState(false);
     const [assets, setAssets] = useState<AssetItem[]>([]);
     const [roadmapState, setRoadmapState] = useState<string[]>([]);
+    const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
 
     const isMobile = useIsMobile();
 
@@ -942,6 +962,15 @@ export const DivorceWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBack, 
         } catch (err) { alert("Lỗi khi lưu hồ sơ."); } finally { setIsSaving(false); }
     };
 
+    const handleSelectPackage = (pkgName: string) => {
+        if (selectedPackage === pkgName) {
+            setSelectedPackage(null);
+        } else {
+            setSelectedPackage(pkgName);
+            alert(`Đã ghi nhận: ${pkgName}.`);
+        }
+    };
+
     return (
         <div className="flex h-screen bg-slate-100 overflow-hidden relative">
             <div className={`${isLeftPanelCollapsed ? (isMobile ? 'hidden' : 'w-0 opacity-0 p-0') : (isMobile ? 'w-full absolute z-20 h-full' : 'w-2/5 opacity-100 p-6 border-r')} bg-white flex flex-col transition-all duration-300 shadow-xl lg:shadow-none flex-shrink-0`}>
@@ -1004,6 +1033,8 @@ export const DivorceWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBack, 
                                 features={['Soạn thảo Đơn ly hôn', 'Hướng dẫn nộp hồ sơ', 'Tư vấn quy trình chuẩn', 'Hỗ trợ online 1 tháng']} 
                                 color="slate"
                                 recommended={report.divorceType === 'ThuanTinh'}
+                                isSelected={selectedPackage === 'Gói Cơ bản'}
+                                onSelect={() => handleSelectPackage('Gói Cơ bản')}
                             />
                             <PricingTier 
                                 title="Gói Tiêu chuẩn" 
@@ -1011,6 +1042,8 @@ export const DivorceWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBack, 
                                 features={['Bao gồm Gói Cơ bản', 'Đại diện nộp hồ sơ', 'Xử lý thủ tục tại Tòa', 'Xác minh cư trú bị đơn']} 
                                 color="blue"
                                 recommended={report.divorceType === 'DonPhuong' && !report.custodyAnalysis.strategy.includes("tranh chấp gay gắt")}
+                                isSelected={selectedPackage === 'Gói Tiêu chuẩn'}
+                                onSelect={() => handleSelectPackage('Gói Tiêu chuẩn')}
                             />
                             <PricingTier 
                                 title="Gói Tranh tụng" 
@@ -1018,6 +1051,8 @@ export const DivorceWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBack, 
                                 features={['Bảo vệ tại Phiên tòa', 'Tranh chấp quyền nuôi con', 'Truy vết & Chia tài sản', 'Thu thập chứng cứ']} 
                                 color="rose"
                                 recommended={report.custodyAnalysis.strategy.includes("tranh chấp") || report.assetDivision.divisionStrategy.includes("phức tạp")}
+                                isSelected={selectedPackage === 'Gói Tranh tụng'}
+                                onSelect={() => handleSelectPackage('Gói Tranh tụng')}
                             />
                         </div>
 
