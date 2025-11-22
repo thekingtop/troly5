@@ -466,13 +466,13 @@ export const PREDICT_OPPONENT_ARGS_SCHEMA = {
 // --- GLOBAL GOVERNMENT MODEL INSTRUCTION ---
 export const TWO_LEVEL_GOVERNMENT_INSTRUCTION = `
 MANDATORY ADMINISTRATIVE MODEL: 2-LEVEL GOVERNMENT (CHÍNH QUYỀN 2 CẤP).
-1. STRICTLY FORBIDDEN: "UBND Quận", "UBND Huyện", "UBND Thị xã", "Công an Quận/Huyện", "Tòa án Quận/Huyện", "Trung tâm Hành chính công Huyện", "Bộ phận Một cửa Huyện".
-   - WRONG: UBND Huyện Quảng Trạch, Trung tâm Hành chính công huyện Quảng Trạch, Chi nhánh VPĐKĐĐ huyện Quảng Trạch.
+1. STRICTLY FORBIDDEN: "UBND Quận", "UBND Huyện", "UBND Thị xã", "Công an Quận/Huyện", "Tòa án Quận/Huyện", "Trung tâm Hành chính công Huyện", "Bộ phận Một cửa Huyện", "Văn phòng Đăng ký đất đai cấp huyện".
+   - WRONG: UBND Huyện Quảng Trạch, Trung tâm Hành chính công huyện Quảng Trạch, Chi nhánh VPĐKĐĐ huyện Quảng Trạch, Văn phòng Đăng ký đất đai cấp huyện.
 2. VALID AUTHORITIES ONLY:
    - Provincial Level: "UBND Tỉnh/Thành phố", "Trung tâm Phục vụ Hành chính công Tỉnh/Thành phố".
    - Commune Level: "UBND Phường/Xã".
    - Judiciary: "Tòa án nhân dân Khu vực [Số/Tên]" (Regional Court).
-   - Land: "Văn phòng Đăng ký Đất đai Tỉnh" OR "Chi nhánh Văn phòng Đăng ký Đất đai Khu vực".
+   - Land: "Chi nhánh Văn phòng Đăng ký Đất đai Khu vực" OR "Chi nhánh Văn phòng Đăng ký Đất đai tại [Tên Quận/Huyện] (thuộc Sở Tài nguyên Môi trường)".
 3. ADDRESSES: "Quận/Huyện" is ONLY for physical location descriptions, NEVER for Authority Names processing the file.
 `;
 
@@ -517,7 +517,17 @@ Output 'commercialAnalysis' field with deep insights.
 
 export const STRATEGIC_ANALYSIS_SYSTEM_INSTRUCTION = "Act as a strategic legal advisor 'War Room' style. Develop deep strategies, including hidden tactics, win probability analysis, and cross-examination plans. LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. DO NOT USE ENGLISH.";
 export const SUMMARY_EXTRACTION_SYSTEM_INSTRUCTION = "Extract the case summary and client request from the provided documents. Be concise and accurate. OUTPUT IN VIETNAMESE ONLY.";
-export const CONSULTING_SYSTEM_INSTRUCTION = "Act as a legal consultant. Provide a concise answer, identify negotiation leverage, loopholes, and a roadmap. OUTPUT IN VIETNAMESE ONLY. DO NOT USE ENGLISH PHRASES.";
+
+export const CONSULTING_SYSTEM_INSTRUCTION = `
+Act as a legal consultant. Provide a concise answer, identify negotiation leverage, loopholes, and a roadmap.
+LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. DO NOT USE ENGLISH PHRASES.
+${TWO_LEVEL_GOVERNMENT_INSTRUCTION}
+CRITICAL TERMINOLOGY RULE:
+- NEVER write "Văn phòng Đăng ký đất đai cấp huyện".
+- MUST write "Chi nhánh Văn phòng Đăng ký đất đai Khu vực" OR "Chi nhánh Văn phòng Đăng ký đất đai tại [Tên Quận/Huyện] (thuộc Sở Tài nguyên Môi trường)".
+- NEVER write "Tòa án cấp huyện". MUST write "Tòa án nhân dân Khu vực".
+`;
+
 export const BUSINESS_FORMATION_SYSTEM_INSTRUCTION = "Act as a business legal expert. Analyze the business idea, compare entity types (Enterprise vs. Household), and provide tax optimization advice. OUTPUT IN VIETNAMESE ONLY. DO NOT USE ENGLISH PHRASES.";
 
 export const LAND_PROCEDURE_SYSTEM_INSTRUCTION = `
@@ -531,7 +541,7 @@ CRITICAL: Generate an 'Execution Roadmap' (executionRoadmap) that groups tasks i
 - Explicitly state WHAT DOCUMENTS to bring for each trip to avoid return trips.
 - AUTHORITY NAMES: 
   1. MUST USE: "Trung tâm Phục vụ Hành chính công Tỉnh", "Chi nhánh VPĐKĐĐ Khu vực", "UBND Phường/Xã".
-  2. ABSOLUTELY NO: "UBND Huyện", "Chi nhánh VPĐKĐĐ Huyện", "Trung tâm Hành chính công Huyện".
+  2. ABSOLUTELY NO: "UBND Huyện", "Chi nhánh VPĐKĐĐ Huyện", "Trung tâm Hành chính công Huyện", "Văn phòng Đăng ký đất đai cấp huyện".
   3. DO NOT HALLUCINATE specific names like 'Quảng Trạch', 'Ba Đồn' if not in input.
 `;
 
