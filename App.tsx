@@ -441,7 +441,11 @@ export default function App() {
     const performAnalysis = useCallback(async (filesToAnalyze: UploadedFile[]) => {
         setIsLoading(true);
         try {
-            const result = await analyzeCaseFiles(filesToAnalyze, query, undefined, clientPosition, jurisdiction);
+            const result = await analyzeCaseFiles(filesToAnalyze, query, undefined, clientPosition, jurisdiction, litigationType);
+            // Auto-detect Litigation Type from AI Report
+            if (result.caseType) {
+                setLitigationType(result.caseType);
+            }
             setReport(result);
             setIsLeftPanelCollapsed(true);
             setMainActionType('update');
@@ -482,7 +486,11 @@ export default function App() {
         setIsLoading(true);
         setError(null);
         try {
-            const result = await analyzeCaseFiles(files, query, { report, stage: report.litigationStage }, clientPosition, jurisdiction);
+            const result = await analyzeCaseFiles(files, query, { report, stage: report.litigationStage }, clientPosition, jurisdiction, litigationType);
+            // Auto-detect Litigation Type from AI Report
+            if (result.caseType) {
+                setLitigationType(result.caseType);
+            }
             setReport(result);
         } catch (err) {
             setError(err instanceof Error ? err.message : "An unknown error occurred during update");
@@ -495,6 +503,10 @@ export default function App() {
         setIsReanalyzing(true);
         try {
              const result = await reanalyzeCaseWithCorrections(reportToReanalyze, files, clientPosition, jurisdiction);
+             // Auto-detect Litigation Type from AI Report
+             if (result.caseType) {
+                setLitigationType(result.caseType);
+             }
              setReport(result);
         } catch (err) {
              alert("Phân tích lại thất bại: " + (err instanceof Error ? err.message : "Lỗi không xác định"));
@@ -775,6 +787,7 @@ export default function App() {
                                         <option value="civil">Dân sự</option>
                                         <option value="criminal">Hình sự</option>
                                         <option value="administrative">Hành chính</option>
+                                        <option value="commercial">Kinh doanh Thương mại</option>
                                     </select>
                                 </div>
                                  <div>

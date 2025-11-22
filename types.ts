@@ -19,7 +19,7 @@ export interface SerializableFile {
 
 export type AppWorkflowType = 'litigation' | 'consulting' | 'businessFormation' | 'landProcedure' | 'divorceConsultation';
 
-export type LitigationType = 'civil' | 'criminal' | 'administrative' | null;
+export type LitigationType = 'civil' | 'criminal' | 'administrative' | 'commercial' | null;
 
 export type LitigationStage = 'first_instance' | 'appellate' | 'cassation' | 'enforcement' | 'consulting';
 
@@ -182,7 +182,24 @@ export interface ArgumentGraph {
   edges: ArgumentEdge[];
 }
 
+export interface CommercialAnalysis {
+    jurisdictionIssue: string;
+    contractValidity: {
+        status: string;
+        invalidClauses: string[];
+        riskAssessment: string;
+    };
+    evidenceAssessment: {
+        strength: string;
+        missingCriticalEvidence: string[];
+        trapEvidenceSuggestions: string[];
+    };
+    enforcementReality: string;
+    cunningTactics: string[];
+}
+
 export interface AnalysisReport {
+  caseType?: LitigationType; // Auto-detected case type
   editableCaseSummary?: string;
   caseTimeline: CaseTimelineEvent[];
   litigationStage: LitigationStage;
@@ -200,6 +217,7 @@ export interface AnalysisReport {
     planningStatus?: string;
     symbolsAnalysis?: SymbolAnalysis[];
   };
+  commercialAnalysis?: CommercialAnalysis;
   applicableLaws: ApplicableLaw[];
   gapAnalysis: GapAnalysis;
   caseProspects: CaseProspects;

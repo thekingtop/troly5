@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import type { AnalysisReport, ApplicableLaw, LawArticle, UploadedFile, LitigationType, LegalLoophole, ChatMessage, CaseTimelineEvent, OpponentArgument, SupportingEvidence, CrossExamQuestion } from '../types.ts';
+import type { AnalysisReport, ApplicableLaw, LawArticle, UploadedFile, LitigationType, LegalLoophole, ChatMessage, CaseTimelineEvent, OpponentArgument, SupportingEvidence, CrossExamQuestion, CommercialAnalysis } from '../types.ts';
 import { MagicIcon } from './icons/MagicIcon.tsx';
 import { explainLaw, continueContextualChat, analyzeOpponentArguments, predictOpponentArguments, runDevilAdvocateAnalysis, generateStrategicPlan } from '../services/geminiService.ts';
 import { Loader } from './Loader.tsx';
@@ -16,9 +16,9 @@ import { RefreshIcon } from './icons/RefreshIcon.tsx';
 import { EditIcon } from './icons/EditIcon.tsx';
 import { LandInfoDisplay } from './LandInfoDisplay.tsx';
 import { AnalysisIcon } from './icons/AnalysisIcon.tsx'; 
-import { ExecutionRoadmapPanel } from './ExecutionRoadmapPanel.tsx'; // NEW Import
+import { ExecutionRoadmapPanel } from './ExecutionRoadmapPanel.tsx';
 
-// ... (Internal Icons BrainIcon, ShieldCheckIcon, ProcedureIcon, etc. remain same)
+// --- Internal Icons BrainIcon, ShieldCheckIcon, ProcedureIcon, etc. remain same ---
 const BrainIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
@@ -140,6 +140,7 @@ const getAnalysisModeLabel = (type: LitigationType) => {
         case 'civil': return 'Dân sự';
         case 'criminal': return 'Hình sự';
         case 'administrative': return 'Hành chính';
+        case 'commercial': return 'Kinh doanh Thương mại';
         default: return 'Chung';
     }
 };
@@ -279,6 +280,69 @@ const DevilAdvocateSection: React.FC<{ report: AnalysisReport }> = ({ report }) 
                     <button onClick={() => setShow(false)} className="text-xs text-gray-500 underline hover:text-gray-300 mt-2">Ẩn phản biện</button>
                 </div>
             )}
+        </div>
+    );
+};
+
+const CommercialAnalysisPanel: React.FC<{ analysis: CommercialAnalysis, highlightTerm: string }> = ({ analysis, highlightTerm }) => {
+    return (
+        <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200 shadow-sm mb-6 animate-fade-in">
+            <h3 className="text-lg font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                <ShieldCheckIcon className="w-6 h-6" />
+                PHÂN TÍCH CHUYÊN SÂU: KINH DOANH THƯƠNG MẠI
+            </h3>
+            <div className="space-y-4">
+                {/* Jurisdiction */}
+                <div className="p-3 bg-white rounded border border-indigo-100">
+                    <h4 className="font-bold text-indigo-800 text-sm mb-1">1. Thẩm quyền & Điều khoản Trọng tài</h4>
+                    <p className="text-sm text-slate-700"><HighlightedText text={analysis.jurisdictionIssue} term={highlightTerm} /></p>
+                </div>
+
+                {/* Contract Validity */}
+                <div className="p-3 bg-white rounded border border-indigo-100">
+                    <h4 className="font-bold text-indigo-800 text-sm mb-1">2. Hiệu lực Hợp đồng (Con dấu & Thẩm quyền ký)</h4>
+                    <div className="text-sm">
+                        <p className="mb-1"><span className="font-semibold">Trạng thái:</span> {analysis.contractValidity.status}</p>
+                        <p className="mb-1"><span className="font-semibold">Rủi ro:</span> {analysis.contractValidity.riskAssessment}</p>
+                        {analysis.contractValidity.invalidClauses.length > 0 && (
+                            <div className="mt-1 p-2 bg-red-50 text-red-800 border-l-2 border-red-400 rounded-r text-xs">
+                                <strong>Điều khoản vô hiệu / Bất lợi:</strong>
+                                <ul className="list-disc list-inside pl-1">{analysis.contractValidity.invalidClauses.map((c, i) => <li key={i}>{c}</li>)}</ul>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Evidence & Traps */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-3 bg-white rounded border border-indigo-100">
+                        <h4 className="font-bold text-indigo-800 text-sm mb-1">3. Lỗ hổng Chứng cứ</h4>
+                        <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
+                            {analysis.evidenceAssessment.missingCriticalEvidence.map((e, i) => <li key={i}><HighlightedText text={e} term={highlightTerm} /></li>)}
+                        </ul>
+                    </div>
+                    <div className="p-3 bg-amber-50 rounded border border-amber-200">
+                        <h4 className="font-bold text-amber-800 text-sm mb-1 flex items-center gap-1"><CunningLawyerIcon className="w-4 h-4"/> Bẫy Chứng cứ (Cáo già)</h4>
+                        <ul className="list-disc list-inside text-xs text-amber-900 space-y-1">
+                            {analysis.evidenceAssessment.trapEvidenceSuggestions.map((t, i) => <li key={i}>{t}</li>)}
+                        </ul>
+                    </div>
+                </div>
+
+                {/* Enforcement */}
+                <div className="p-3 bg-white rounded border border-indigo-100">
+                    <h4 className="font-bold text-indigo-800 text-sm mb-1">4. Khả năng Thi hành án & Tẩu tán Tài sản</h4>
+                    <p className="text-sm text-slate-700"><HighlightedText text={analysis.enforcementReality} term={highlightTerm} /></p>
+                </div>
+
+                {/* Cunning Tactics */}
+                <div className="p-3 bg-purple-100 rounded border border-purple-200">
+                    <h4 className="font-bold text-purple-900 text-sm mb-2 flex items-center gap-1"><CunningLawyerIcon className="w-4 h-4"/> Chiến thuật "Sát thủ" Thương mại</h4>
+                    <ul className="list-decimal list-inside text-sm text-purple-800 space-y-1">
+                        {analysis.cunningTactics.map((t, i) => <li key={i}><HighlightedText text={t} term={highlightTerm} /></li>)}
+                    </ul>
+                </div>
+            </div>
         </div>
     );
 };
@@ -604,9 +668,14 @@ export const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, onClearSum
                 </button>
             </div>
             
-            <div className={`flex items-center gap-2 mb-4 p-3 rounded-lg border border-slate-200 ${litigationType === 'civil' ? 'bg-blue-50 border-blue-200 text-blue-800' : (litigationType === 'criminal' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-orange-50 border-orange-200 text-orange-800')}`}>
+            <div className={`flex items-center gap-2 mb-4 p-3 rounded-lg border border-slate-200 ${litigationType === 'civil' ? 'bg-blue-50 border-blue-200 text-blue-800' : (litigationType === 'criminal' ? 'bg-red-50 border-red-200 text-red-800' : (litigationType === 'commercial' ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-orange-50 border-orange-200 text-orange-800'))}`}>
                 <AnalysisIcon className="w-5 h-5" /> <span className="font-bold">Chế độ Phân tích: {getAnalysisModeLabel(litigationType)}</span>
             </div>
+            
+            {/* NEW: Commercial Analysis Panel */}
+            {report?.commercialAnalysis && (
+                <CommercialAnalysisPanel analysis={report.commercialAnalysis} highlightTerm={highlightTerm} />
+            )}
             
             {report && <WarRoomSection report={report} onUpdateReport={onUpdateReport} files={files} />}
 

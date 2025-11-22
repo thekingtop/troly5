@@ -1,8 +1,4 @@
 
-
-
-
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type {
   AnalysisReport, UploadedFile, FileCategory, ApplicableLaw,
@@ -35,7 +31,8 @@ import {
   LITIGATION_CHAT_UPDATE_SYSTEM_INSTRUCTION,
   BUSINESS_FORMATION_CHAT_UPDATE_SYSTEM_INSTRUCTION,
   LAND_PROCEDURE_CHAT_UPDATE_SYSTEM_INSTRUCTION,
-  DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION
+  DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION,
+  COMMERCIAL_LITIGATION_SYSTEM_INSTRUCTION
 } from '../constants.ts';
 
 // Declare process for the preview environment
@@ -264,7 +261,8 @@ export const analyzeCaseFiles = async (
     query: string,
     previousAnalysis?: { report: AnalysisReport, stage: string },
     clientPosition?: string,
-    jurisdiction?: string
+    jurisdiction?: string,
+    litigationType?: LitigationType
 ): Promise<AnalysisReport> => {
     try {
         const fileParts = await Promise.all(files.map(fileToPart));
@@ -273,20 +271,22 @@ export const analyzeCaseFiles = async (
         User Query: "${query}"
         Client Position: "${clientPosition || 'Not specified'}"
         Jurisdiction: "${jurisdiction || 'Vietnam'}"
+        Litigation Type: "${litigationType || 'Civil'}"
         ${previousAnalysis ? `Previous Stage: ${previousAnalysis.stage}. THIS IS AN UPDATE REQUEST.` : ''}
         `;
 
-        // INCREASED RETRY SETTINGS FOR LITIGATION
-        // Retries: 5 (instead of 3)
-        // Base Delay: 4000ms (instead of 2000ms)
-        // This allows for ~2 minutes of total retry time for heavy tasks.
+        // Determine which instruction to use based on litigation type
+        let systemInstruction = CORE_ANALYSIS_SYSTEM_INSTRUCTION;
+        if (litigationType === 'commercial') {
+            systemInstruction = COMMERCIAL_LITIGATION_SYSTEM_INSTRUCTION;
+        }
+
         const response = await generateContentWithRetry("gemini-2.5-flash", {
             contents: {
                 parts: [...fileParts, { text: prompt }]
             },
             config: {
-                // Use the LIGHTWEIGHT Core Instructions & Schema to avoid 503 errors
-                systemInstruction: CORE_ANALYSIS_SYSTEM_INSTRUCTION,
+                systemInstruction: systemInstruction,
                 responseMimeType: "application/json",
                 responseSchema: CORE_REPORT_SCHEMA,
             }

@@ -29,6 +29,7 @@ export const DRAFTING_MODE_LABELS = {
 
 export const litigationStagesByType = {
     civil: ['first_instance', 'appellate', 'enforcement'],
+    commercial: ['first_instance', 'appellate', 'enforcement'],
     criminal: ['investigation', 'prosecution', 'trial'],
     administrative: ['first_instance', 'appellate']
 };
@@ -230,7 +231,6 @@ export const legalLoopholeSchema = {
     }
 };
 
-// NEW: Schema for Smart Execution Roadmap
 export const executionRoadmapSchema = {
     type: Type.OBJECT,
     properties: {
@@ -259,9 +259,35 @@ export const executionRoadmapSchema = {
     }
 };
 
+export const COMMERCIAL_ANALYSIS_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        jurisdictionIssue: { type: Type.STRING },
+        contractValidity: {
+            type: Type.OBJECT,
+            properties: {
+                status: { type: Type.STRING },
+                invalidClauses: { type: Type.ARRAY, items: { type: Type.STRING } },
+                riskAssessment: { type: Type.STRING }
+            }
+        },
+        evidenceAssessment: {
+            type: Type.OBJECT,
+            properties: {
+                strength: { type: Type.STRING },
+                missingCriticalEvidence: { type: Type.ARRAY, items: { type: Type.STRING } },
+                trapEvidenceSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } }
+            }
+        },
+        enforcementReality: { type: Type.STRING },
+        cunningTactics: { type: Type.ARRAY, items: { type: Type.STRING } }
+    }
+};
+
 export const CORE_REPORT_SCHEMA = {
     type: Type.OBJECT,
     properties: {
+        caseType: { type: Type.STRING, enum: ['civil', 'criminal', 'administrative', 'commercial'] },
         editableCaseSummary: { type: Type.STRING },
         caseTimeline: { type: Type.ARRAY, items: timelineEventSchema },
         litigationStage: { type: Type.STRING },
@@ -269,6 +295,7 @@ export const CORE_REPORT_SCHEMA = {
         legalRelationship: { type: Type.STRING },
         coreLegalIssues: { type: Type.ARRAY, items: { type: Type.STRING } },
         landInfo: landInfoSchema,
+        commercialAnalysis: COMMERCIAL_ANALYSIS_SCHEMA,
         applicableLaws: { type: Type.ARRAY, items: applicableLawSchema },
         gapAnalysis: {
             type: Type.OBJECT,
@@ -297,7 +324,7 @@ export const CORE_REPORT_SCHEMA = {
         },
         requestResolutionPlan: { type: Type.ARRAY, items: { type: Type.STRING } },
         contingencyPlan: { type: Type.ARRAY, items: { type: Type.STRING } },
-        executionRoadmap: executionRoadmapSchema // Integrated here
+        executionRoadmap: executionRoadmapSchema
     }
 };
 
@@ -441,12 +468,30 @@ export const DIRECT_RESPONSE_PROTOCOL = "PROTOCOL: RESPOND DIRECTLY. NO PLEASANT
 
 export const CORE_ANALYSIS_SYSTEM_INSTRUCTION = `
 Analyze this case as a senior lawyer in Vietnam. 
+FIRST, CLASSIFY the legal case type into one of these values: 'civil' (Dân sự), 'criminal' (Hình sự), 'administrative' (Hành chính), or 'commercial' (Kinh doanh thương mại) based on the parties and nature of the dispute.
+- Commercial: Disputes between entities with profit purpose (companies), or involving commercial contracts.
+- Civil: Disputes between individuals/orgs about civil rights/obligations (loans, land, inheritance).
+- Criminal: Violations of the Penal Code.
+- Administrative: Disputes regarding administrative decisions by state agencies.
+
 Identify legal relationships, key issues, gaps, prospects, and initial strategy.
 IMPORTANT: Generate a 'Smart Execution Roadmap' (executionRoadmap). 
 - Group tasks by 'Trip' or 'Location' (e.g., Trip 1: Notary Office, Trip 2: Court) to minimize travel time. 
 - For each trip, list ALL documents the client must bring (originals/copies).
 - Assign specific actors (Client vs Lawyer) for each task.
 - If the case involves land, verify map symbols against the specific historical Land Law period (1993 vs 2013 vs 2024).
+`;
+
+export const COMMERCIAL_LITIGATION_SYSTEM_INSTRUCTION = `
+Analyze this COMMERCIAL case as a "Cunning & Strategic" business lawyer in Vietnam.
+Output 'commercial' as the caseType.
+Focus on these real-world realities:
+1. Jurisdiction: Court vs. Commercial Arbitration (VIAC). Check arbitration clauses carefully.
+2. Contract Validity: Verify signatory authority (Director vs Deputy), seal validity, and void clauses.
+3. Evidence Traps: How to trick the opponent into admitting debt (e.g., signing a debt reconciliation minute to reset the statute of limitations).
+4. Enforcement: Is the opponent a "Ghost Company"? Check for asset dispersal risks immediately.
+5. Statute of Limitations: Is the claim expired? (2 years for commercial).
+Output 'commercialAnalysis' field with deep insights.
 `;
 
 export const STRATEGIC_ANALYSIS_SYSTEM_INSTRUCTION = "Act as a strategic legal advisor 'War Room' style. Develop deep strategies, including hidden tactics, win probability analysis, and cross-examination plans.";
