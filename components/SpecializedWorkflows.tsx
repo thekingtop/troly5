@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { SavedCase, UploadedFile, LandProcedureReport, DivorceReport, ChatMessage, SerializableFile, DocType, FormData, AssetItem, ExecutionRoadmap } from '../types.ts';
 import { FileUpload } from './FileUpload.tsx';
 import { Loader } from './Loader.tsx';
-import { analyzeLandProcedure, analyzeDivorceCase, continueLandChat, continueDivorceChat, generateDocumentFromTemplate, categorizeMultipleFiles } from '../services/geminiService.ts';
+import { analyzeLandProcedure, analyzeDivorceCase, continueLandChat, continueDivorceChat, generateDocumentFromTemplate, categorizeMultipleFiles, searchLandPrices } from '../services/geminiService.ts';
 import { BackIcon } from './icons/BackIcon.tsx';
 import { SaveCaseIcon } from './icons/SaveCaseIcon.tsx';
 import { ChatIcon } from './icons/ChatIcon.tsx';
@@ -19,6 +19,7 @@ import { DOC_TYPE_FIELDS, FIELD_LABELS, REGIONAL_COURTS, INVISIBLE_FILES_CHECKLI
 import { TrashIcon } from './icons/TrashIcon.tsx';
 import { PlusIcon } from './icons/PlusIcon.tsx';
 import { ExecutionRoadmapPanel } from './ExecutionRoadmapPanel.tsx';
+import { SearchIcon } from './icons/SearchIcon.tsx'; // Imported SearchIcon
 
 // --- Helper Components ---
 
@@ -49,7 +50,7 @@ const ShieldExclamationIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =
 
 const CalculatorIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5a2.25 2.25 0 0 1 2.25 2.25v12a2.25 2.25 0 0 1-2.25 2.25h-7.5a2.25 2.25 0 0 1-2.25-2.25v-12A2.25 2.25 0 0 1 8.25 6Z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.007V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5a2.25 2.25 0 0 1 2.25 2.25v12a2.25 2.25 0 0 1-2.25 2.25h-7.5a2.25 2.25 0 0 1-2.25-2.25v-12A2.25 2.25 0 0 1 8.25 6Z" />
   </svg>
 );
 
@@ -256,18 +257,24 @@ const PricingTier: React.FC<{
     onSelect?: () => void;
 }> = ({ title, price, features, recommended, color, isSelected, onSelect }) => {
     const colorClasses = {
-        slate: { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-900', header: 'bg-slate-100', btn: 'bg-slate-800 hover:bg-slate-900' },
-        blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-900', header: 'bg-blue-100', btn: 'bg-blue-600 hover:bg-blue-700' },
-        rose: { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-900', header: 'bg-rose-100', btn: 'bg-rose-600 hover:bg-rose-700' },
-        teal: { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-900', header: 'bg-teal-100', btn: 'bg-teal-600 hover:bg-teal-700' },
+        slate: { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-900', header: 'bg-slate-100', btn: 'bg-slate-800 hover:bg-slate-900', ring: 'ring-slate-500' },
+        blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-900', header: 'bg-blue-100', btn: 'bg-blue-600 hover:bg-blue-700', ring: 'ring-blue-500' },
+        rose: { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-900', header: 'bg-rose-100', btn: 'bg-rose-600 hover:bg-rose-700', ring: 'ring-rose-500' },
+        teal: { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-900', header: 'bg-teal-100', btn: 'bg-teal-600 hover:bg-teal-700', ring: 'ring-teal-500' },
     }[color];
+
+    const containerStyle = isSelected 
+        ? `ring-4 ring-offset-2 ${colorClasses.ring} transform scale-[1.03] shadow-2xl bg-white z-20 border-transparent` 
+        : (recommended ? 'ring-2 ring-rose-500 shadow-xl transform scale-105 z-10' : 'shadow-sm hover:shadow-md border hover:border-gray-300');
 
     return (
         <div 
             onClick={onSelect}
-            className={`border rounded-xl overflow-hidden flex flex-col transition-all duration-300 cursor-pointer ${colorClasses.border} ${colorClasses.bg} ${isSelected ? `ring-4 ring-offset-2 ${color === 'rose' ? 'ring-rose-500' : (color === 'blue' ? 'ring-blue-500' : (color === 'teal' ? 'ring-teal-500' : 'ring-slate-500'))}` : (recommended ? 'ring-2 ring-rose-500 shadow-xl transform scale-105 z-10' : 'shadow-sm hover:shadow-md')}`}
+            className={`rounded-xl overflow-hidden flex flex-col transition-all duration-300 cursor-pointer ${colorClasses.bg} ${containerStyle}`}
         >
-            {recommended && <div className="bg-rose-500 text-white text-xs font-bold text-center py-1">KHUYÊN DÙNG</div>}
+            {isSelected && <div className={`text-white text-xs font-bold text-center py-1.5 ${colorClasses.btn} uppercase tracking-wider shadow-sm`}>✓ ĐÃ CHỌN GÓI NÀY</div>}
+            {!isSelected && recommended && <div className="bg-rose-500 text-white text-xs font-bold text-center py-1">KHUYÊN DÙNG</div>}
+            
             <div className={`p-4 text-center ${colorClasses.header} border-b ${colorClasses.border}`}>
                 <h4 className={`font-bold text-lg ${colorClasses.text}`}>{title}</h4>
                 <div className="mt-2 text-2xl font-extrabold text-slate-800">{price}</div>
@@ -285,9 +292,10 @@ const PricingTier: React.FC<{
             <div className="p-4 border-t border-slate-200 bg-white">
                 <button 
                     onClick={(e) => { e.stopPropagation(); onSelect && onSelect(); }}
-                    className={`w-full py-2 rounded-lg text-white font-semibold text-sm transition-colors ${colorClasses.btn}`}
+                    className={`w-full py-2 rounded-lg text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${colorClasses.btn}`}
                 >
-                    {isSelected ? 'Đã Chọn Gói Này' : 'Chọn Gói Này'}
+                    {isSelected && <CheckBadgeIcon className="w-4 h-4 text-white" />}
+                    {isSelected ? 'Đã Chọn' : 'Chọn Gói Này'}
                 </button>
             </div>
         </div>
@@ -302,7 +310,6 @@ const PanicModePanel: React.FC<{
         try {
             const formData: FormData = {};
             const content = await generateDocumentFromTemplate('noContactOrder', formData);
-            // Quick download logic (reuse export service if possible, here simplified)
             const blob = new Blob([content], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -371,8 +378,8 @@ const AssetVisualizer: React.FC<{
             id: Date.now().toString(),
             name: newAsset.name,
             value: valueNum,
-            status: 'common', // Default to common
-            allocation: 'sell_split' // Default split
+            status: 'common',
+            allocation: 'sell_split'
         };
         setAssets([...assets, item]);
         setNewAsset({ name: '', value: '' });
@@ -388,7 +395,6 @@ const AssetVisualizer: React.FC<{
 
     const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
-    // Calculate Totals
     let husbandTotal = 0;
     let wifeTotal = 0;
 
@@ -398,7 +404,6 @@ const AssetVisualizer: React.FC<{
         } else if (asset.allocation === 'wife') {
             wifeTotal += asset.value;
         } else {
-            // Split 50/50
             husbandTotal += asset.value / 2;
             wifeTotal += asset.value / 2;
         }
@@ -415,8 +420,6 @@ const AssetVisualizer: React.FC<{
                 <CalculatorIcon className="w-6 h-6 text-green-600" />
                 Công cụ Chia Tài sản Trực quan
             </h3>
-            
-            {/* Input Area */}
             <div className="flex gap-2 mb-4">
                 <input 
                     type="text" 
@@ -434,10 +437,7 @@ const AssetVisualizer: React.FC<{
                 />
                 <button onClick={handleAddAsset} className="px-3 bg-green-600 text-white rounded-md hover:bg-green-700"><PlusIcon className="w-5 h-5"/></button>
             </div>
-
-            {/* Visualizer Columns */}
             <div className="grid grid-cols-3 gap-4 mb-4 min-h-[200px]">
-                {/* Husband Column */}
                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                     <h4 className="font-bold text-blue-800 text-center mb-2">CHỒNG (Giữ hiện vật)</h4>
                     <div className="space-y-2">
@@ -454,8 +454,6 @@ const AssetVisualizer: React.FC<{
                         ))}
                     </div>
                 </div>
-
-                {/* Common/Split Column */}
                 <div className="bg-slate-100 p-3 rounded-lg border border-slate-200">
                     <h4 className="font-bold text-slate-700 text-center mb-2">CHIA ĐÔI / BÁN CHIA</h4>
                     <div className="space-y-2">
@@ -474,8 +472,6 @@ const AssetVisualizer: React.FC<{
                         ))}
                     </div>
                 </div>
-
-                {/* Wife Column */}
                 <div className="bg-rose-50 p-3 rounded-lg border border-rose-200">
                     <h4 className="font-bold text-rose-800 text-center mb-2">VỢ (Giữ hiện vật)</h4>
                     <div className="space-y-2">
@@ -493,8 +489,6 @@ const AssetVisualizer: React.FC<{
                     </div>
                 </div>
             </div>
-
-            {/* Summary Result */}
             <div className="bg-gray-800 text-white p-4 rounded-lg text-center">
                 <div className="grid grid-cols-2 gap-4 mb-2 text-sm">
                     <div>Tổng giá trị Chồng giữ: <span className="font-bold text-blue-300">{formatCurrency(husbandTotal)}</span></div>
@@ -543,68 +537,163 @@ const InvisibleFileChecklist: React.FC = () => {
     );
 };
 
-// --- NEW: Land Tax Calculator ---
-const LandTaxCalculator: React.FC = () => {
-    const [transferValue, setTransferValue] = useState('');
-    const [stateValue, setStateValue] = useState('');
-    const [deduction, setDeduction] = useState('');
+// --- NEW: Land Price Search Panel ---
+const LandPriceSearchPanel: React.FC = () => {
+    const [location, setLocation] = useState('');
+    const [result, setResult] = useState<{ text: string; sources: { title: string; uri: string }[] } | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
-    const parseCurrency = (val: string) => parseFloat(val.replace(/[^0-9]/g, '')) || 0;
-
-    const transferNum = parseCurrency(transferValue);
-    const stateNum = parseCurrency(stateValue);
-    
-    const calculationBase = Math.max(transferNum, stateNum);
-    const pit = calculationBase * 0.02; // 2% Personal Income Tax
-    const regFee = calculationBase * 0.005; // 0.5% Registration Fee
-    const appraisalFee = Math.min(calculationBase * 0.0015, 5000000); // 0.15%, max 5 million usually but varies
-    const total = pit + regFee + appraisalFee;
+    const handleSearch = async () => {
+        if (!location.trim()) return;
+        setIsLoading(true);
+        try {
+            const data = await searchLandPrices(location);
+            setResult(data);
+        } catch (e) {
+            alert("Lỗi khi tra cứu.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="p-4 bg-white border border-slate-200 rounded-lg shadow-lg mt-6">
             <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                <CalculatorIcon className="w-6 h-6 text-teal-600" />
-                Tính Nhanh Thuế & Phí Sang Tên
+                <SearchIcon className="w-6 h-6 text-blue-600" />
+                Tra cứu Bảng giá đất & Hệ số K (Google Search)
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Giá trị chuyển nhượng (Thực tế)</label>
-                    <input type="text" value={transferValue} onChange={e => setTransferValue(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="VNĐ"/>
-                </div>
-                <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Giá theo Bảng giá Nhà nước</label>
-                    <input type="text" value={stateValue} onChange={e => setStateValue(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="VNĐ (Nhân hệ số K)"/>
-                </div>
+            <div className="flex gap-2 mb-4">
+                <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Nhập Tỉnh/Thành phố (VD: Hà Nội, TP.HCM)..."
+                    className="flex-grow p-2 border border-slate-300 rounded-md text-sm"
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                <button onClick={handleSearch} disabled={isLoading} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 disabled:bg-slate-300 flex items-center gap-2">
+                    {isLoading ? <Loader /> : 'Tra cứu'}
+                </button>
             </div>
-            
+            {result && (
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div className="prose prose-sm text-slate-700 max-w-none whitespace-pre-wrap mb-3 text-sm">
+                        <CunningLawyerText text={result.text} />
+                    </div>
+                    {result.sources.length > 0 && (
+                        <div className="border-t border-slate-200 pt-2">
+                            <p className="text-xs font-semibold text-slate-500 mb-1">Nguồn tham khảo:</p>
+                            <ul className="space-y-1">
+                                {result.sources.map((src, i) => (
+                                    <li key={i}>
+                                        <a href={src.uri} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate block">
+                                            {src.title || src.uri}
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- UPDATED: Land Tax Calculator ---
+const LandTaxCalculator: React.FC = () => {
+    const [mode, setMode] = useState<'transfer' | 'conversion'>('transfer');
+    // Transfer Inputs
+    const [transferValue, setTransferValue] = useState('');
+    const [stateValue, setStateValue] = useState('');
+    // Conversion Inputs
+    const [newLandPrice, setNewLandPrice] = useState('');
+    const [oldLandPrice, setOldLandPrice] = useState('');
+    const [area, setArea] = useState('');
+    const [ratio, setRatio] = useState('100'); // 100% or 50%
+
+    const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+    const parseCurrency = (val: string) => parseFloat(val.replace(/[^0-9]/g, '')) || 0;
+
+    let calculationResult: React.ReactNode = null;
+
+    if (mode === 'transfer') {
+        const transferNum = parseCurrency(transferValue);
+        const stateNum = parseCurrency(stateValue);
+        const calculationBase = Math.max(transferNum, stateNum);
+        const pit = calculationBase * 0.02; // 2% Personal Income Tax
+        const regFee = calculationBase * 0.005; // 0.5% Registration Fee
+        const appraisalFee = Math.min(calculationBase * 0.0015, 5000000); // 0.15%, max 5 million
+        const total = pit + regFee + appraisalFee;
+
+        calculationResult = (
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
                 <div className="flex justify-between text-sm mb-1">
                     <span>Căn cứ tính thuế:</span>
                     <span className="font-bold">{formatCurrency(calculationBase)}</span>
                 </div>
                 <div className="border-t border-slate-300 my-2"></div>
-                <div className="flex justify-between text-sm mb-1">
-                    <span>Thuế TNCN (2%):</span>
-                    <span>{formatCurrency(pit)}</span>
-                </div>
-                <div className="flex justify-between text-sm mb-1">
-                    <span>Lệ phí Trước bạ (0.5%):</span>
-                    <span>{formatCurrency(regFee)}</span>
-                </div>
-                <div className="flex justify-between text-sm mb-1">
-                    <span>Phí Thẩm định (0.15%):</span>
-                    <span>{formatCurrency(appraisalFee)}</span>
-                </div>
+                <div className="flex justify-between text-sm mb-1"><span>Thuế TNCN (2%):</span><span>{formatCurrency(pit)}</span></div>
+                <div className="flex justify-between text-sm mb-1"><span>Lệ phí Trước bạ (0.5%):</span><span>{formatCurrency(regFee)}</span></div>
+                <div className="flex justify-between text-sm mb-1"><span>Phí Thẩm định (0.15%):</span><span>{formatCurrency(appraisalFee)}</span></div>
                 <div className="border-t border-slate-300 my-2"></div>
-                <div className="flex justify-between font-bold text-teal-700">
-                    <span>TỔNG CỘNG:</span>
-                    <span>{formatCurrency(total)}</span>
-                </div>
-                {transferNum < stateNum && transferNum > 0 && (
-                    <p className="text-xs text-amber-600 mt-2 italic">*Cảnh báo: Giá chuyển nhượng thấp hơn giá nhà nước. Thuế sẽ bị áp theo giá nhà nước.</p>
-                )}
+                <div className="flex justify-between font-bold text-teal-700"><span>TỔNG CỘNG:</span><span>{formatCurrency(total)}</span></div>
+                {transferNum < stateNum && transferNum > 0 && <p className="text-xs text-amber-600 mt-2 italic">*Cảnh báo: Giá chuyển nhượng thấp hơn giá nhà nước.</p>}
             </div>
+        );
+    } else {
+        const newPrice = parseCurrency(newLandPrice);
+        const oldPrice = parseCurrency(oldLandPrice);
+        const areaNum = parseFloat(area) || 0;
+        const ratioNum = parseInt(ratio) / 100;
+        const fee = (newPrice - oldPrice) * areaNum * ratioNum;
+
+        calculationResult = (
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div className="flex justify-between text-sm mb-1"><span>Chênh lệch giá đất:</span><span className="font-bold">{formatCurrency(newPrice - oldPrice)} / m2</span></div>
+                <div className="flex justify-between text-sm mb-1"><span>Diện tích chuyển đổi:</span><span>{areaNum} m2</span></div>
+                <div className="flex justify-between text-sm mb-1"><span>Tỷ lệ đóng:</span><span>{ratio}%</span></div>
+                <div className="border-t border-slate-300 my-2"></div>
+                <div className="flex justify-between font-bold text-teal-700"><span>TIỀN SỬ DỤNG ĐẤT:</span><span>{formatCurrency(Math.max(0, fee))}</span></div>
+                <p className="text-xs text-slate-500 mt-2 italic">*Công thức: (Giá đất mới - Giá đất cũ) x Diện tích x Tỷ lệ %</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-4 bg-white border border-slate-200 rounded-lg shadow-lg mt-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                <CalculatorIcon className="w-6 h-6 text-teal-600" />
+                Tính Nhanh Thuế & Phí
+            </h3>
+            
+            {/* Tabs */}
+            <div className="flex border-b border-slate-200 mb-4">
+                <button onClick={() => setMode('transfer')} className={`py-2 px-4 text-sm font-semibold ${mode === 'transfer' ? 'text-teal-600 border-b-2 border-teal-600' : 'text-slate-500 hover:text-slate-700'}`}>Sang tên</button>
+                <button onClick={() => setMode('conversion')} className={`py-2 px-4 text-sm font-semibold ${mode === 'conversion' ? 'text-teal-600 border-b-2 border-teal-600' : 'text-slate-500 hover:text-slate-700'}`}>Chuyển mục đích</button>
+            </div>
+
+            {mode === 'transfer' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div><label className="block text-xs font-semibold text-slate-600 mb-1">Giá trị chuyển nhượng (Thực tế)</label><input type="text" value={transferValue} onChange={e => setTransferValue(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="VNĐ"/></div>
+                    <div><label className="block text-xs font-semibold text-slate-600 mb-1">Giá theo Bảng giá Nhà nước</label><input type="text" value={stateValue} onChange={e => setStateValue(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="VNĐ (Nhân hệ số K)"/></div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div><label className="block text-xs font-semibold text-slate-600 mb-1">Giá đất Loại Mới (Bảng giá x K)</label><input type="text" value={newLandPrice} onChange={e => setNewLandPrice(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="VNĐ/m2"/></div>
+                    <div><label className="block text-xs font-semibold text-slate-600 mb-1">Giá đất Loại Cũ (Bảng giá x K)</label><input type="text" value={oldLandPrice} onChange={e => setOldLandPrice(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="VNĐ/m2"/></div>
+                    <div><label className="block text-xs font-semibold text-slate-600 mb-1">Diện tích chuyển đổi (m2)</label><input type="text" value={area} onChange={e => setArea(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="m2"/></div>
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Nguồn gốc đất (Tỷ lệ)</label>
+                        <select value={ratio} onChange={e => setRatio(e.target.value)} className="w-full p-2 border rounded text-sm bg-white">
+                            <option value="100">100% (Chênh lệch đầy đủ)</option>
+                            <option value="50">50% (Đất vườn/ao trong cùng thửa đất ở)</option>
+                        </select>
+                    </div>
+                </div>
+            )}
+            
+            {calculationResult}
         </div>
     );
 };
@@ -740,11 +829,9 @@ export const LandProcedureWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGo
     };
 
     const handleSelectPackage = (pkgName: string) => {
-        if (selectedPackage === pkgName) {
-            setSelectedPackage(null);
-        } else {
-            setSelectedPackage(pkgName);
-            alert(`Đã ghi nhận: ${pkgName}.`);
+        setSelectedPackage(pkgName === selectedPackage ? null : pkgName);
+        if (pkgName !== selectedPackage) {
+            alert(`Đã chọn gói: ${pkgName}. Thông tin sẽ được lưu vào hồ sơ.`);
         }
     };
 
@@ -770,9 +857,12 @@ export const LandProcedureWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGo
                 {isLeftPanelCollapsed && <button onClick={() => setIsLeftPanelCollapsed(false)} className="absolute top-4 left-4 z-30 p-2 bg-white border rounded-lg shadow-md"><PanelExpandIcon className="w-6 h-6" /></button>}
                 
                 {/* Advanced Tools always available */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <LandTaxCalculator />
-                    <DueDiligencePanel checkedItems={dueDiligenceState} setCheckedItems={setDueDiligenceState} />
+                <div className="mb-6">
+                    <LandPriceSearchPanel />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <LandTaxCalculator />
+                        <DueDiligencePanel checkedItems={dueDiligenceState} setCheckedItems={setDueDiligenceState} />
+                    </div>
                 </div>
 
                 {!report && !isLoading && <div className="flex items-center justify-center text-slate-400 py-10">Kết quả phân tích sẽ hiển thị tại đây.</div>}
@@ -963,11 +1053,9 @@ export const DivorceWorkflow: React.FC<WorkflowProps> = ({ onPreview, onGoBack, 
     };
 
     const handleSelectPackage = (pkgName: string) => {
-        if (selectedPackage === pkgName) {
-            setSelectedPackage(null);
-        } else {
-            setSelectedPackage(pkgName);
-            alert(`Đã ghi nhận: ${pkgName}.`);
+        setSelectedPackage(pkgName === selectedPackage ? null : pkgName);
+        if (pkgName !== selectedPackage) {
+            alert(`Đã chọn gói: ${pkgName}. Thông tin sẽ được lưu vào hồ sơ.`);
         }
     };
 

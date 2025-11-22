@@ -881,3 +881,50 @@ export const runDevilAdvocateAnalysis = async (report: AnalysisReport): Promise<
          throw handleGeminiError(error, 'runDevilAdvocateAnalysis');
      }
 };
+
+// --- NEW: Search Land Prices ---
+export const searchLandPrices = async (location: string): Promise<{ text: string; sources: { title: string; uri: string }[] }> => {
+    try {
+        const prompt = `
+        Tìm kiếm và trích xuất CHÍNH XÁC CÁC CON SỐ về "Bảng giá đất" và "Hệ số điều chỉnh giá đất (K)" MỚI NHẤT (2024-2025) tại: ${location}.
+        
+        YÊU CẦU TUYỆT ĐỐI:
+        1. KHÔNG TRẢ LỜI LÝ THUYẾT/VĂN BẢN DÀI DÒNG.
+        2. TẬP TRUNG VÀO CON SỐ CỤ THỂ.
+        
+        Hãy trình bày kết quả theo định dạng sau (Nếu tìm thấy):
+        *   **Văn bản áp dụng:** [Số hiệu Quyết định]
+        *   **Hệ số K (Đất ở):** [Con số cụ thể, ví dụ: 1.2 hoặc 2.0]
+        *   **Giá đất Ở (ODT/ONT):** [Mức giá thấp nhất] - [Mức giá cao nhất] (VNĐ/m2)
+        *   **Giá đất Nông nghiệp:** [Mức giá tham khảo] (VNĐ/m2)
+        *   **Lưu ý quan trọng:** [1 câu ngắn gọn về rủi ro hoặc thay đổi mới]
+        
+        Nếu không tìm thấy con số chính xác cho từng đường, hãy đưa ra mức giá bình quân của Quận/Huyện đó.
+        OUTPUT LANGUAGE: VIETNAMESE.
+        `;
+
+        const response = await generateContentWithRetry("gemini-2.5-flash", {
+            contents: prompt,
+            config: {
+                tools: [{ googleSearch: {} }],
+            }
+        });
+
+        const text = response.text || "Không tìm thấy thông tin.";
+        const sources: { title: string; uri: string }[] = [];
+
+        // Extract grounding metadata if available
+        const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+        if (chunks) {
+            chunks.forEach((chunk: any) => {
+                if (chunk.web) {
+                    sources.push({ title: chunk.web.title, uri: chunk.web.uri });
+                }
+            });
+        }
+
+        return { text, sources };
+    } catch (error) {
+        throw handleGeminiError(error, 'searchLandPrices');
+    }
+};

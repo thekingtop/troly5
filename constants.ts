@@ -6,14 +6,14 @@ export const REGIONAL_COURTS = [
     "Tòa án nhân dân cấp cao tại Hà Nội",
     "Tòa án nhân dân cấp cao tại Đà Nẵng",
     "Tòa án nhân dân cấp cao tại TP. Hồ Chí Minh",
-    "Tòa án nhân dân Khu vực 1 (miền Bắc)",
-    "Tòa án nhân dân Khu vực 2 (miền Bắc)",
-    "Tòa án nhân dân Khu vực 1 (miền Trung)",
-    "Tòa án nhân dân Khu vực 1 (miền Nam)",
-    "Tòa án nhân dân thành phố Hà Nội",
-    "Tòa án nhân dân thành phố Hồ Chí Minh",
-    // Add generic placeholders to encourage correct format
-    "Tòa án nhân dân Khu vực [X]",
+    "Tòa án nhân dân Khu vực 1",
+    "Tòa án nhân dân Khu vực 2",
+    "Tòa án nhân dân Khu vực 3",
+    "Tòa án nhân dân Khu vực 4",
+    "Tòa án nhân dân Khu vực 5",
+    "Tòa án nhân dân Khu vực 6",
+    "Tòa án nhân dân Khu vực [Số] (Thay thế Tòa cấp Huyện)",
+    "Tòa án nhân dân Thành phố [Tên Tỉnh/TP Trực thuộc TW]",
 ];
 
 export const fileCategoryLabels: Record<string, string> = {
@@ -124,7 +124,7 @@ export const PANIC_MODE_INSTRUCTIONS = [
 ];
 
 export const LAND_DUE_DILIGENCE_CHECKLIST = [
-    "Kiểm tra quy hoạch tại UBND Quận/Huyện",
+    "Kiểm tra quy hoạch tại UBND Tỉnh/Thành phố hoặc Cổng thông tin Quy hoạch",
     "Kiểm tra tình trạng tranh chấp tại UBND Xã/Phường",
     "So khớp diện tích thực tế và sổ đỏ",
     "Kiểm tra thông tin ngăn chặn tại Văn phòng Đăng ký Đất đai",
@@ -463,15 +463,29 @@ export const PREDICT_OPPONENT_ARGS_SCHEMA = {
     }
 };
 
+// --- GLOBAL GOVERNMENT MODEL INSTRUCTION ---
+export const TWO_LEVEL_GOVERNMENT_INSTRUCTION = `
+MANDATORY ADMINISTRATIVE MODEL: 2-LEVEL GOVERNMENT (CHÍNH QUYỀN 2 CẤP).
+1. STRICTLY FORBIDDEN: "UBND Quận", "UBND Huyện", "UBND Thị xã", "Công an Quận/Huyện", "Tòa án Quận/Huyện", "Trung tâm Hành chính công Huyện", "Bộ phận Một cửa Huyện".
+   - WRONG: UBND Huyện Quảng Trạch, Trung tâm Hành chính công huyện Quảng Trạch, Chi nhánh VPĐKĐĐ huyện Quảng Trạch.
+2. VALID AUTHORITIES ONLY:
+   - Provincial Level: "UBND Tỉnh/Thành phố", "Trung tâm Phục vụ Hành chính công Tỉnh/Thành phố".
+   - Commune Level: "UBND Phường/Xã".
+   - Judiciary: "Tòa án nhân dân Khu vực [Số/Tên]" (Regional Court).
+   - Land: "Văn phòng Đăng ký Đất đai Tỉnh" OR "Chi nhánh Văn phòng Đăng ký Đất đai Khu vực".
+3. ADDRESSES: "Quận/Huyện" is ONLY for physical location descriptions, NEVER for Authority Names processing the file.
+`;
+
 // System Instructions
-export const SYSTEM_INSTRUCTION = "You are a highly experienced Vietnamese lawyer. Analyze the provided case files and query. LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. RESPONSE MUST BE IN VIETNAMESE ONLY. DO NOT USE ENGLISH.";
+export const SYSTEM_INSTRUCTION = "You are a highly experienced Vietnamese lawyer. Analyze the provided case files and query. LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. RESPONSE MUST BE IN VIETNAMESE ONLY. DO NOT USE ENGLISH PHRASES.";
 export const REPORT_SCHEMA = CORE_REPORT_SCHEMA;
 
-export const DIRECT_RESPONSE_PROTOCOL = "PROTOCOL: RESPOND STRICTLY IN VIETNAMESE. DO NOT START WITH 'GIVEN THAT', 'SINCE', OR ANY ENGLISH PHRASES. BE CONCISE, DIRECT, AND PROFESSIONAL (LIKE A SENIOR PARTNER). NO PLEASANTRIES. GO STRAIGHT TO THE POINT. SHORT PARAGRAPHS.";
+export const DIRECT_RESPONSE_PROTOCOL = `PROTOCOL: EXTREMELY CONCISE. BULLET POINTS. NO PLEASANTRIES. DIRECT TO THE POINT. STYLE: SENIOR LAWYER TO JUNIOR. LANGUAGE: VIETNAMESE ONLY. DO NOT USE ENGLISH PHRASES LIKE 'Given that', 'Since', 'However'. ${TWO_LEVEL_GOVERNMENT_INSTRUCTION}`;
 
 export const CORE_ANALYSIS_SYSTEM_INSTRUCTION = `
 Analyze this case as a senior lawyer in Vietnam.
-LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. ALL OUTPUT MUST BE IN VIETNAMESE.
+LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. ALL OUTPUT MUST BE IN VIETNAMESE. DO NOT USE ENGLISH PHRASES LIKE 'Given that', 'Since', 'As', 'Based on'.
+${TWO_LEVEL_GOVERNMENT_INSTRUCTION}
 FIRST, CLASSIFY the legal case type into one of these values: 'civil' (Dân sự), 'criminal' (Hình sự), 'administrative' (Hành chính), or 'commercial' (Kinh doanh thương mại) based on the parties and nature of the dispute.
 - Commercial: Disputes between entities with profit purpose (companies), or involving commercial contracts.
 - Civil: Disputes between individuals/orgs about civil rights/obligations (loans, land, inheritance).
@@ -480,16 +494,17 @@ FIRST, CLASSIFY the legal case type into one of these values: 'civil' (Dân sự
 
 Identify legal relationships, key issues, gaps, prospects, and initial strategy.
 IMPORTANT: Generate a 'Smart Execution Roadmap' (executionRoadmap). 
-- Group tasks by 'Trip' or 'Location' (e.g., Trip 1: Notary Office, Trip 2: Court) to minimize travel time. 
+- Group tasks by 'Trip' or 'Location' (e.g., Trip 1: Notary Office, Trip 2: Regional Court) to minimize travel time. 
 - For each trip, list ALL documents the client must bring (originals/copies).
 - Assign specific actors (Client vs Lawyer) for each task.
 - If the case involves land, verify map symbols against the specific historical Land Law period (1993 vs 2013 vs 2024).
-- Court Name Protocol: Use accurate Vietnamese court names based on the 2-level model, specifically 'Tòa án nhân dân Khu vực X' (e.g., Tòa án nhân dân Khu vực 1) instead of 'Tòa án nhân dân Quận/Huyện' if the region has transitioned, or follow the official current administrative name.
+- LOCATION PROTOCOL: Do NOT hallucinate specific location names (e.g., 'Ba Đồn', 'Hà Đông') if they are not in the input. Use placeholders like '[Tên Xã/Phường]' or '[Khu vực]' if the specific location is unknown.
 `;
 
 export const COMMERCIAL_LITIGATION_SYSTEM_INSTRUCTION = `
 Analyze this COMMERCIAL case as a "Cunning & Strategic" business lawyer in Vietnam.
-LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE.
+LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. NO ENGLISH PHRASES.
+${TWO_LEVEL_GOVERNMENT_INSTRUCTION}
 Output 'commercial' as the caseType.
 Focus on these real-world realities:
 1. Jurisdiction: Court vs. Commercial Arbitration (VIAC). Check arbitration clauses carefully.
@@ -502,30 +517,35 @@ Output 'commercialAnalysis' field with deep insights.
 
 export const STRATEGIC_ANALYSIS_SYSTEM_INSTRUCTION = "Act as a strategic legal advisor 'War Room' style. Develop deep strategies, including hidden tactics, win probability analysis, and cross-examination plans. LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. DO NOT USE ENGLISH.";
 export const SUMMARY_EXTRACTION_SYSTEM_INSTRUCTION = "Extract the case summary and client request from the provided documents. Be concise and accurate. OUTPUT IN VIETNAMESE ONLY.";
-export const CONSULTING_SYSTEM_INSTRUCTION = "Act as a legal consultant. Provide a concise answer, identify negotiation leverage, loopholes, and a roadmap. OUTPUT IN VIETNAMESE ONLY.";
-export const BUSINESS_FORMATION_SYSTEM_INSTRUCTION = "Act as a business legal expert. Analyze the business idea, compare entity types (Enterprise vs. Household), and provide tax optimization advice. OUTPUT IN VIETNAMESE ONLY.";
+export const CONSULTING_SYSTEM_INSTRUCTION = "Act as a legal consultant. Provide a concise answer, identify negotiation leverage, loopholes, and a roadmap. OUTPUT IN VIETNAMESE ONLY. DO NOT USE ENGLISH PHRASES.";
+export const BUSINESS_FORMATION_SYSTEM_INSTRUCTION = "Act as a business legal expert. Analyze the business idea, compare entity types (Enterprise vs. Household), and provide tax optimization advice. OUTPUT IN VIETNAMESE ONLY. DO NOT USE ENGLISH PHRASES.";
 
 export const LAND_PROCEDURE_SYSTEM_INSTRUCTION = `
 Act as a land law expert in Vietnam. 
-LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. DO NOT USE ENGLISH PHRASES LIKE 'Given that' OR 'Since'.
+LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. DO NOT USE ENGLISH PHRASES LIKE 'Given that', 'Since', 'However'.
+${TWO_LEVEL_GOVERNMENT_INSTRUCTION}
 Provide a step-by-step procedure guide, document checklist, and financial estimation.
 CRITICAL: Generate an 'Execution Roadmap' (executionRoadmap) that groups tasks into logical 'Trips'.
 - Example: "Trip 1: To Notary Office (Sign contract, pay fees)", "Trip 2: To Public Admin Center (Submit tax decl, change registration)".
 - Explicitly state WHO goes (Client, Lawyer, or Both).
 - Explicitly state WHAT DOCUMENTS to bring for each trip to avoid return trips.
-- Ensure court names or administrative body names follow current Vietnamese structure (e.g., Tòa án nhân dân Khu vực...).
+- AUTHORITY NAMES: 
+  1. MUST USE: "Trung tâm Phục vụ Hành chính công Tỉnh", "Chi nhánh VPĐKĐĐ Khu vực", "UBND Phường/Xã".
+  2. ABSOLUTELY NO: "UBND Huyện", "Chi nhánh VPĐKĐĐ Huyện", "Trung tâm Hành chính công Huyện".
+  3. DO NOT HALLUCINATE specific names like 'Quảng Trạch', 'Ba Đồn' if not in input.
 `;
 
 export const DIVORCE_SYSTEM_INSTRUCTION = `
 Act as a divorce lawyer in Vietnam. 
 LANGUAGE REQUIREMENT: STRICTLY VIETNAMESE. DO NOT USE ENGLISH PHRASES LIKE 'Since there is no dispute' OR 'Given that'.
+${TWO_LEVEL_GOVERNMENT_INSTRUCTION}
 Analyze custody, asset division, and provide a procedure roadmap.
 CRITICAL: Generate an 'Execution Roadmap' (executionRoadmap) focusing on efficiency and safety.
-- Group tasks by location (e.g., Ward Police, Court, Mediation Center).
-- If 'Panic Mode' or Domestic Violence is detected, prioritize safety steps (e.g., "Trip 1: Police Station to file report").
+- Group tasks by location (e.g., Ward Police, Regional Court, Mediation Center).
+- If 'Panic Mode' or Domestic Violence is detected, prioritize safety steps (e.g., "Trip 1: Police Station (Phường/Xã) to file report").
 - Clearly assign tasks: What the client does alone vs. what the lawyer handles.
 - List required documents for each specific trip.
-- Ensure court names follow current Vietnamese structure (e.g., Tòa án nhân dân Khu vực 6 instead of old District names if applicable).
+- COURT NAMES: Use 'Tòa án nhân dân Khu vực [Số]'. Do not invent names.
 `;
 
 export const DOCUMENT_GENERATION_SYSTEM_INSTRUCTION = "Generate a legal document based on the provided type and information. Use formal Vietnamese legal terminology. OUTPUT IN VIETNAMESE ONLY.";
