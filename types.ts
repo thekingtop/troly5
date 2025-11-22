@@ -231,11 +231,11 @@ export interface ConsultingReport {
     proposedRoadmap: { stage: string; description: string }[];
     caseType?: LitigationType | 'unknown';
     globalChatHistory?: ChatMessage[];
-    taxAnalysis: any; // Simplified for brevity
-    modelComparison: any;
-    procedureGuide: any;
-    validExpensesGuide: any;
-    legalRisks: any;
+    taxAnalysis?: any; // Optional now
+    modelComparison?: any;
+    procedureGuide?: any;
+    validExpensesGuide?: any;
+    legalRisks?: any;
 }
 
 export interface BusinessFormationReport {

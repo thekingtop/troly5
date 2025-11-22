@@ -129,6 +129,19 @@ export const LAND_DUE_DILIGENCE_CHECKLIST = [
     "Đo đạc lại ranh giới thửa đất"
 ];
 
+export const LAND_SYMBOL_HISTORY: Record<string, any> = {
+    "T": { period: "Luật Đất đai 1993", meaning: "Đất ở (Thổ cư)", currentEquivalent: "ONT / ODT" },
+    "A": { period: "Luật Đất đai 1993", meaning: "Đất nông nghiệp (Ao)", currentEquivalent: "LUC / CLN" },
+    "V": { period: "Luật Đất đai 1993", meaning: "Đất vườn", currentEquivalent: "CLN / BHK" },
+    "L": { period: "Luật Đất đai 1987", meaning: "Đất lúa", currentEquivalent: "LUC" },
+    "Q": { period: "Cũ", meaning: "Đất quy hoạch", currentEquivalent: "Dựa trên bản đồ hiện trạng" },
+    "ONT": { period: "Luật Đất đai 2013/2024", meaning: "Đất ở tại nông thôn", currentEquivalent: "ONT" },
+    "ODT": { period: "Luật Đất đai 2013/2024", meaning: "Đất ở tại đô thị", currentEquivalent: "ODT" },
+    "CLN": { period: "Luật Đất đai 2013/2024", meaning: "Đất trồng cây lâu năm", currentEquivalent: "CLN" },
+    "BHK": { period: "Luật Đất đai 2013/2024", meaning: "Đất trồng cây hàng năm khác", currentEquivalent: "BHK" },
+    "LUC": { period: "Luật Đất đai 2013/2024", meaning: "Đất chuyên trồng lúa nước", currentEquivalent: "LUC" }
+};
+
 export const nodeTypeMeta: Record<string, { color: string, label: string }> = {
     fact: { color: "bg-blue-100 border-blue-300", label: "Sự kiện" },
     evidence: { color: "bg-green-100 border-green-300", label: "Chứng cứ" },
@@ -217,6 +230,7 @@ export const legalLoopholeSchema = {
     }
 };
 
+// NEW: Schema for Smart Execution Roadmap
 export const executionRoadmapSchema = {
     type: Type.OBJECT,
     properties: {
@@ -225,9 +239,9 @@ export const executionRoadmapSchema = {
             items: {
                 type: Type.OBJECT,
                 properties: {
-                    location: { type: Type.STRING },
-                    documentsToBring: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    notes: { type: Type.STRING },
+                    location: { type: Type.STRING, description: "Where to go (e.g., Notary Office, Court, Client's House)" },
+                    documentsToBring: { type: Type.ARRAY, items: { type: Type.STRING }, description: "List of original documents required for this trip" },
+                    notes: { type: Type.STRING, description: "Important logistics notes (e.g., 'Go early in the morning', 'Both husband and wife must be present')" },
                     tasks: {
                         type: Type.ARRAY,
                         items: {
@@ -235,7 +249,7 @@ export const executionRoadmapSchema = {
                             properties: {
                                 taskName: { type: Type.STRING },
                                 description: { type: Type.STRING },
-                                actor: { type: Type.STRING, enum: ['Client', 'Lawyer', 'Both'] }
+                                actor: { type: Type.STRING, enum: ['Client', 'Lawyer', 'Both'], description: "Who performs this task?" }
                             }
                         }
                     }
@@ -283,7 +297,7 @@ export const CORE_REPORT_SCHEMA = {
         },
         requestResolutionPlan: { type: Type.ARRAY, items: { type: Type.STRING } },
         contingencyPlan: { type: Type.ARRAY, items: { type: Type.STRING } },
-        executionRoadmap: executionRoadmapSchema
+        executionRoadmap: executionRoadmapSchema // Integrated here
     }
 };
 
@@ -334,7 +348,6 @@ export const CONSULTING_REPORT_SCHEMA = {
         legalLoopholes: { type: Type.ARRAY, items: legalLoopholeSchema },
         proposedRoadmap: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { stage: { type: Type.STRING }, description: { type: Type.STRING } } } },
         caseType: { type: Type.STRING },
-        taxAnalysis: { type: Type.OBJECT, nullable: true }, // Allowing extra fields
     }
 };
 
@@ -423,27 +436,57 @@ export const PREDICT_OPPONENT_ARGS_SCHEMA = {
 // System Instructions
 export const SYSTEM_INSTRUCTION = "You are a highly experienced Vietnamese lawyer. Analyze the provided case files and query.";
 export const REPORT_SCHEMA = CORE_REPORT_SCHEMA;
-export const CORE_ANALYSIS_SYSTEM_INSTRUCTION = "Analyze this case as a senior lawyer in Vietnam. Identify legal relationships, key issues, gaps, prospects, and initial strategy. Generate a trip-based execution roadmap.";
+
+export const DIRECT_RESPONSE_PROTOCOL = "PROTOCOL: RESPOND DIRECTLY. NO PLEASANTRIES. NO 'Here is the answer'. GO STRAIGHT TO THE POINT. USE PROFESSIONAL, CONCISE LEGAL TONE (LIKE A SENIOR PARTNER TO AN ASSOCIATE).";
+
+export const CORE_ANALYSIS_SYSTEM_INSTRUCTION = `
+Analyze this case as a senior lawyer in Vietnam. 
+Identify legal relationships, key issues, gaps, prospects, and initial strategy.
+IMPORTANT: Generate a 'Smart Execution Roadmap' (executionRoadmap). 
+- Group tasks by 'Trip' or 'Location' (e.g., Trip 1: Notary Office, Trip 2: Court) to minimize travel time. 
+- For each trip, list ALL documents the client must bring (originals/copies).
+- Assign specific actors (Client vs Lawyer) for each task.
+- If the case involves land, verify map symbols against the specific historical Land Law period (1993 vs 2013 vs 2024).
+`;
+
 export const STRATEGIC_ANALYSIS_SYSTEM_INSTRUCTION = "Act as a strategic legal advisor 'War Room' style. Develop deep strategies, including hidden tactics, win probability analysis, and cross-examination plans.";
 export const SUMMARY_EXTRACTION_SYSTEM_INSTRUCTION = "Extract the case summary and client request from the provided documents. Be concise and accurate.";
 export const CONSULTING_SYSTEM_INSTRUCTION = "Act as a legal consultant. Provide a concise answer, identify negotiation leverage, loopholes, and a roadmap.";
 export const BUSINESS_FORMATION_SYSTEM_INSTRUCTION = "Act as a business legal expert. Analyze the business idea, compare entity types (Enterprise vs. Household), and provide tax optimization advice.";
-export const LAND_PROCEDURE_SYSTEM_INSTRUCTION = "Act as a land law expert. Provide a step-by-step procedure guide, document checklist, and financial estimation for land procedures.";
-export const DIVORCE_SYSTEM_INSTRUCTION = "Act as a divorce lawyer. Analyze custody, asset division, and provide a procedure roadmap with practical advice.";
+
+export const LAND_PROCEDURE_SYSTEM_INSTRUCTION = `
+Act as a land law expert in Vietnam. 
+Provide a step-by-step procedure guide, document checklist, and financial estimation.
+CRITICAL: Generate an 'Execution Roadmap' (executionRoadmap) that groups tasks into logical 'Trips'.
+- Example: "Trip 1: To Notary Office (Sign contract, pay fees)", "Trip 2: To Public Admin Center (Submit tax decl, change registration)".
+- Explicitly state WHO goes (Client, Lawyer, or Both).
+- Explicitly state WHAT DOCUMENTS to bring for each trip to avoid return trips.
+`;
+
+export const DIVORCE_SYSTEM_INSTRUCTION = `
+Act as a divorce lawyer in Vietnam. 
+Analyze custody, asset division, and provide a procedure roadmap.
+CRITICAL: Generate an 'Execution Roadmap' (executionRoadmap) focusing on efficiency and safety.
+- Group tasks by location (e.g., Ward Police, Court, Mediation Center).
+- If 'Panic Mode' or Domestic Violence is detected, prioritize safety steps (e.g., "Trip 1: Police Station to file report").
+- Clearly assign tasks: What the client does alone vs. what the lawyer handles.
+- List required documents for each specific trip.
+`;
+
 export const DOCUMENT_GENERATION_SYSTEM_INSTRUCTION = "Generate a legal document based on the provided type and information. Use formal Vietnamese legal terminology.";
 export const TACTICAL_DRAFTING_INSTRUCTION = "Draft this paragraph with specific tactical intent (assertive, defensive, etc.) as requested. Annotate key word choices.";
 export const OPPONENT_ANALYSIS_SYSTEM_INSTRUCTION = "Analyze the opponent's arguments. Find weaknesses, counter-arguments, and supporting evidence.";
 export const PREDICT_OPPONENT_ARGS_SYSTEM_INSTRUCTION = "Predict potential arguments the opponent might use based on the case facts.";
 export const DEVIL_ADVOCATE_SYSTEM_INSTRUCTION = "Play the Devil's Advocate. Critique the current case strategy and identify weaknesses.";
 export const ARGUMENT_GENERATION_SYSTEM_INSTRUCTION = "Generate a coherent legal argument based on the selected nodes from the argument map.";
-export const ARGUMENT_NODE_CHAT_SYSTEM_INSTRUCTION = "Chat about a specific node in the argument map. Provide insights or expand on the node's content.";
+export const ARGUMENT_NODE_CHAT_SYSTEM_INSTRUCTION = `Chat about a specific node in the argument map. Provide insights or expand on the node's content. ${DIRECT_RESPONSE_PROTOCOL}`;
 export const INTELLIGENT_SEARCH_SYSTEM_INSTRUCTION = "Answer the user's question based on the full context of the case report and files.";
-export const CONTEXTUAL_CHAT_SYSTEM_INSTRUCTION = "Engage in a chat about a specific section of the analysis report. Provide detailed explanations and further advice.";
+export const CONTEXTUAL_CHAT_SYSTEM_INSTRUCTION = `Engage in a chat about a specific section of the analysis report. Provide detailed explanations and further advice. ${DIRECT_RESPONSE_PROTOCOL}`;
 export const QUICK_ANSWER_REFINE_SYSTEM_INSTRUCTION = "Refine the consulting answer based on the selected mode (concise, empathetic, formal, etc.).";
-export const CONSULTING_CHAT_UPDATE_SYSTEM_INSTRUCTION = "Continue the consulting chat. Update the report if new information is provided.";
-export const LITIGATION_CHAT_UPDATE_SYSTEM_INSTRUCTION = "Continue the litigation chat. Update the report if new information is provided.";
-export const BUSINESS_FORMATION_CHAT_UPDATE_SYSTEM_INSTRUCTION = "Continue the business formation chat. Update the report if new information is provided.";
-export const LAND_PROCEDURE_CHAT_UPDATE_SYSTEM_INSTRUCTION = "Continue the land procedure chat. Update the report if new information is provided.";
-export const DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION = "Continue the divorce chat. Update the report if new information is provided.";
+export const CONSULTING_CHAT_UPDATE_SYSTEM_INSTRUCTION = `Continue the consulting chat. Update the report if new information is provided. ${DIRECT_RESPONSE_PROTOCOL}`;
+export const LITIGATION_CHAT_UPDATE_SYSTEM_INSTRUCTION = `Continue the litigation chat. Update the report if new information is provided. ${DIRECT_RESPONSE_PROTOCOL}`;
+export const BUSINESS_FORMATION_CHAT_UPDATE_SYSTEM_INSTRUCTION = `Continue the business formation chat. Update the report if new information is provided. ${DIRECT_RESPONSE_PROTOCOL}`;
+export const LAND_PROCEDURE_CHAT_UPDATE_SYSTEM_INSTRUCTION = `Continue the land procedure chat. Update the report if new information is provided. ${DIRECT_RESPONSE_PROTOCOL}`;
+export const DIVORCE_CHAT_UPDATE_SYSTEM_INSTRUCTION = `Continue the divorce chat. Update the report if new information is provided. ${DIRECT_RESPONSE_PROTOCOL}`;
 export const CUNNING_LAWYER_PERSONA = "You are a cunning, strategic lawyer.";
 export const KNOWLEDGE_BASE_RULES = "Base your analysis on Vietnamese laws and legal precedents.";
